@@ -1,59 +1,212 @@
-import type { AnalysisOptions, AnalysisResult, WorkerRequest, WorkerResponse } from "./types";
+import type {
+  DatasetSummary,
+  EngineRuntimeInfo,
+  EventAlignmentView,
+  EventTreeView,
+  EventPhylproView,
+  EventEdit,
+  ImportedProject,
+  ReviewState,
+  ScanOptions,
+  PhylproGapMode,
+  ScanProgress,
+  ScanResults,
+  SignalPlot,
+  WorkerEvent,
+  WorkerRequest,
+  WorkerRequestPayload,
+  WorkerResponse,
+} from "./types";
+import packageMetadata from "../../package.json";
 
-interface PendingRequest {
-  resolve: (response: WorkerResponse) => void;
-  reject: (error: Error) => void;
-}
+type Pending = {
+  resolve: (value: unknown) => void;
+  reject: (reason: Error) => void;
+};
 
-type RequestPayload = WorkerRequest extends infer Request
-  ? Request extends { id: number }
-    ? Omit<Request, "id">
-    : never
-  : never;
-
-export class CoreWorkerClient {
-  private readonly worker = new Worker(new URL("../workers/analysis.worker.ts", import.meta.url), { type: "module" });
-  private readonly pending = new Map<number, PendingRequest>();
-  private nextId = 1;
+export class RdpWorkerClient {
+  private readonly worker: Worker;
+  private readonly pending = new Map<number, Pending>();
+  private requestId = 0;
+  private progressListeners = new Set<(progress: ScanProgress) => void>();
 
   constructor() {
-    this.worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-      const request = this.pending.get(event.data.id);
-      if (!request) return;
-      this.pending.delete(event.data.id);
-      if (event.data.ok) request.resolve(event.data);
-      else request.reject(new Error(event.data.error));
-    };
-    this.worker.onerror = (event) => {
-      const error = new Error(event.message || "The RDP worker stopped unexpectedly");
-      for (const request of this.pending.values()) request.reject(error);
+    this.worker = new Worker(new URL("../workers/analysis.worker.ts", import.meta.url), {
+      type: "module",
+      name: "rdp-analysis",
+    });
+    this.worker.addEventListener("message", (event: MessageEvent<WorkerResponse | WorkerEvent>) => {
+      const message = event.data;
+      if ("type" in message) {
+        if (message.type === "progress") {
+          this.progressListeners.forEach((listener) => listener(message.progress));
+        }
+        return;
+      }
+      const pending = this.pending.get(message.id);
+      if (!pending) return;
+      this.pending.delete(message.id);
+      if (message.ok) pending.resolve(message.value);
+      else pending.reject(new Error(message.error));
+    });
+    this.worker.addEventListener("error", (event) => {
+      const error = new Error(event.message || "The RDP analysis worker stopped unexpectedly.");
+      this.pending.forEach(({ reject }) => reject(error));
       this.pending.clear();
-    };
+    });
   }
 
-  async init(baseUrl: string): Promise<string> {
-    const response = await this.request({ type: "init", baseUrl });
-    if (response.ok && response.type === "ready") return response.version;
-    throw new Error("The RDP core returned an invalid initialization response");
+  onProgress(listener: (progress: ScanProgress) => void): () => void {
+    this.progressListeners.add(listener);
+    return () => this.progressListeners.delete(listener);
   }
 
-  async analyze(bytes: ArrayBuffer, options: AnalysisOptions): Promise<AnalysisResult> {
-    const response = await this.request({ type: "analyze", bytes, options }, [bytes]);
-    if (response.ok && response.type === "result") return response.result;
-    throw new Error("The RDP core returned an invalid analysis response");
+  init(): Promise<EngineRuntimeInfo> {
+    const wasmBaseUrl = new URL("wasm/", document.baseURI).href;
+    return this.send({
+      type: "init",
+      wasmBaseUrl,
+      assetVersion: packageMetadata.version,
+    }) as Promise<EngineRuntimeInfo>;
+  }
+
+  async load(file: File): Promise<DatasetSummary> {
+    const bytes = await file.arrayBuffer();
+    return this.send({ type: "load", name: file.name, bytes }, [bytes]) as Promise<DatasetSummary>;
+  }
+
+  async importProject(file: File): Promise<ImportedProject> {
+    const bytes = await file.arrayBuffer();
+    return this.send(
+      { type: "import-project", name: file.name, bytes },
+      [bytes],
+    ) as Promise<ImportedProject>;
+  }
+
+  scan(options: ScanOptions): Promise<ScanResults> {
+    return this.send({ type: "scan", options }) as Promise<ScanResults>;
+  }
+
+  cancel(): Promise<void> {
+    return this.send({ type: "cancel" }) as Promise<void>;
+  }
+
+  plot(signalId: number): Promise<SignalPlot> {
+    return this.send({ type: "plot", signalId }) as Promise<SignalPlot>;
+  }
+
+  eventAlignment(eventId: number, flankSites = 30, rowLimit = 28): Promise<EventAlignmentView> {
+    return this.send({
+      type: "event-alignment",
+      eventId,
+      flankSites,
+      rowLimit,
+    }) as Promise<EventAlignmentView>;
+  }
+
+  eventTrees(eventId: number): Promise<EventTreeView> {
+    return this.send({ type: "event-trees", eventId }) as Promise<EventTreeView>;
+  }
+
+  eventPhylpro(
+    eventId: number,
+    windowSites = 60,
+    gapMode: PhylproGapMode = "ignore-missing-pairwise",
+    includeSelf = false,
+  ): Promise<EventPhylproView> {
+    return this.send({
+      type: "event-phylpro",
+      eventId,
+      windowSites,
+      gapMode,
+      includeSelf,
+    }) as Promise<EventPhylproView>;
+  }
+
+  setReviewState(signalId: number, state: ReviewState): Promise<void> {
+    return this.send({ type: "set-review-state", signalId, state }) as Promise<void>;
+  }
+
+  setEventReviewState(eventId: number, state: ReviewState): Promise<ScanResults> {
+    return this.send({ type: "set-event-review-state", eventId, state }) as Promise<ScanResults>;
+  }
+
+  updateEvent(eventId: number, edit: EventEdit): Promise<ScanResults> {
+    return this.send({ type: "update-event", eventId, edit }) as Promise<ScanResults>;
+  }
+
+  updateEventGroup(
+    eventId: number,
+    sequenceIndices: number[],
+    manualOverride = true,
+  ): Promise<ScanResults> {
+    return this.send({ type: "update-event-group", eventId, sequenceIndices, manualOverride }) as Promise<ScanResults>;
+  }
+
+  reconcileAfter(eventId: number, cpuThreads: number): Promise<ScanResults> {
+    return this.send({ type: "reconcile-after", eventId, cpuThreads }) as Promise<ScanResults>;
+  }
+
+  exportCsv(): Promise<string> {
+    return this.send({ type: "export-csv" }) as Promise<string>;
+  }
+
+  exportEnabledSequences(
+    maskedSequenceIndices: number[],
+    disabledSequenceIndices: number[],
+  ): Promise<string> {
+    return this.send({
+      type: "export-enabled-sequences",
+      maskedSequenceIndices,
+      disabledSequenceIndices,
+    }) as Promise<string>;
+  }
+
+  exportMaskedOrDisabledSequences(
+    maskedSequenceIndices: number[],
+    disabledSequenceIndices: number[],
+  ): Promise<string> {
+    return this.send({
+      type: "export-masked-or-disabled-sequences",
+      maskedSequenceIndices,
+      disabledSequenceIndices,
+    }) as Promise<string>;
+  }
+
+  exportRecombinantSequencesRemoved(): Promise<string> {
+    return this.send({ type: "export-recombinant-sequences-removed" }) as Promise<string>;
+  }
+
+  exportRecombinantColumnsRemoved(): Promise<string> {
+    return this.send({ type: "export-recombinant-columns-removed" }) as Promise<string>;
+  }
+
+  exportRecombinationFree(): Promise<string> {
+    return this.send({ type: "export-recombination-free" }) as Promise<string>;
+  }
+
+  exportFragmented(): Promise<string> {
+    return this.send({ type: "export-fragmented" }) as Promise<string>;
+  }
+
+  exportProject(): Promise<string> {
+    return this.send({ type: "export-project" }) as Promise<string>;
   }
 
   dispose(): void {
     this.worker.terminate();
-    for (const request of this.pending.values()) request.reject(new Error("The RDP worker was closed"));
     this.pending.clear();
+    this.progressListeners.clear();
   }
 
-  private request(message: RequestPayload, transfer: Transferable[] = []): Promise<WorkerResponse> {
-    const id = this.nextId++;
+  private send(
+    request: WorkerRequestPayload,
+    transfer: Transferable[] = [],
+  ): Promise<unknown> {
+    const id = ++this.requestId;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      this.worker.postMessage({ ...message, id } as WorkerRequest, transfer);
+      this.worker.postMessage({ ...request, id } as WorkerRequest, transfer);
     });
   }
 }

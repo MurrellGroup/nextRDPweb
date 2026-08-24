@@ -1,74 +1,2110 @@
 /// <reference lib="webworker" />
 
-import type { AnalysisResult, WorkerRequest, WorkerResponse } from "../lib/types";
+import type {
+  DatasetSummary,
+  EngineRuntimeInfo,
+  ImportedProject,
+  ReconciledEvent,
+  RdpSignal,
+  ScanExecution,
+  ScanOptions,
+  ScanProgress,
+  ScanResults,
+  ScanTiming,
+  WorkerRequest,
+  WorkerResponse,
+} from "../lib/types";
 
-interface CoreModule {
+interface EmscriptenModule {
   HEAPU8: Uint8Array;
-  UTF8ToString(pointer: number): string;
-  _malloc(length: number): number;
+  _malloc(size: number): number;
   _free(pointer: number): void;
-  _next_rdp_analyze(pointer: number, length: number, circular: number, pValue: number, windowSites: number): number;
-  _next_rdp_result_json(): number;
-  _next_rdp_error(): number;
-  _next_rdp_version(): number;
+  UTF8ToString(pointer: number): string;
+  _rdp_create(): number;
+  _rdp_destroy(handle: number): void;
+  _rdp_version(): number;
+  _rdp_set_worker_threads(handle: number, requested: number): number;
+  _rdp_load_alignment(handle: number, bytes: number, length: number): number;
+  _rdp_get_summary_json(handle: number): number;
+  _rdp_scan_begin(
+    handle: number,
+    circular: number,
+    correction: number,
+    pValueCutoff: number,
+    windowSites: number,
+    maxChiEnabled: number,
+    maxChiWindowSites: number,
+    chimaeraEnabled: number,
+    chimaeraWindowSites: number,
+    geneconvEnabled: number,
+    geneconvMismatchScale: number,
+    geneconvMaxOverlaps: number,
+    threeSeqEnabled: number,
+    bootscanPrimaryEnabled: number,
+    bootscanSecondaryEnabled: number,
+    bootscanWindowSites: number,
+    bootscanStepSites: number,
+    bootscanBootstrapReplicates: number,
+    bootscanSupportCutoff: number,
+    bootscanRandomSeed: number,
+    siscanPrimaryEnabled: number,
+    siscanSecondaryEnabled: number,
+    siscanWindowSites: number,
+    siscanStepSites: number,
+    siscanScanPermutations: number,
+    siscanPValuePermutations: number,
+    siscanRandomSeed: number,
+    polishBreakpoints: number,
+    queryReferenceMode: number,
+    referenceGroups: number,
+    referenceGroupCount: number,
+    mask: number,
+    maskLength: number,
+    disabled: number,
+    disabledLength: number,
+  ): number;
+  _rdp_scan_batch(handle: number, tripletBudget: number): number;
+  _rdp_reconcile(handle: number): number;
+  _rdp_cancel(handle: number): void;
+  _rdp_get_progress_json(handle: number): number;
+  _rdp_get_results_json(handle: number): number;
+  _rdp_get_signal_plot_json(handle: number, signalId: number): number;
+  _rdp_get_event_alignment_json(
+    handle: number,
+    eventId: number,
+    flankSites: number,
+    rowLimit: number,
+  ): number;
+  _rdp_get_event_trees_json(handle: number, eventId: number): number;
+  _rdp_get_event_phylpro_json(
+    handle: number,
+    eventId: number,
+    windowSites: number,
+    gapMode: number,
+    includeSelf: number,
+  ): number;
+  _rdp_set_review_state(handle: number, signalId: number, state: number): number;
+  _rdp_set_event_review_state(handle: number, eventId: number, state: number): number;
+  _rdp_update_event(
+    handle: number,
+    eventId: number,
+    recombinant: number,
+    majorParent: number,
+    minorParent: number,
+    beginning: number,
+    ending: number,
+  ): number;
+  _rdp_update_event_group(
+    handle: number,
+    eventId: number,
+    sequenceIndices: number,
+    sequenceCount: number,
+    manualOverride: number,
+  ): number;
+  _rdp_reconcile_after(handle: number, eventId: number): number;
+  _rdp_restore_alignment_begin(handle: number, sequenceCount: number): number;
+  _rdp_restore_alignment_record(
+    handle: number,
+    index: number,
+    name: number,
+    nameLength: number,
+    sequence: number,
+    sequenceLength: number,
+  ): number;
+  _rdp_restore_alignment_finish(handle: number, format: number, formatLength: number): number;
+  _rdp_restore_scan_begin(
+    handle: number,
+    circular: number,
+    correction: number,
+    pValueCutoff: number,
+    windowSites: number,
+    maxChiEnabled: number,
+    maxChiWindowSites: number,
+    chimaeraEnabled: number,
+    chimaeraWindowSites: number,
+    geneconvEnabled: number,
+    geneconvMismatchScale: number,
+    geneconvMaxOverlaps: number,
+    threeSeqEnabled: number,
+    bootscanPrimaryEnabled: number,
+    bootscanSecondaryEnabled: number,
+    bootscanWindowSites: number,
+    bootscanStepSites: number,
+    bootscanBootstrapReplicates: number,
+    bootscanSupportCutoff: number,
+    bootscanRandomSeed: number,
+    siscanPrimaryEnabled: number,
+    siscanSecondaryEnabled: number,
+    siscanWindowSites: number,
+    siscanStepSites: number,
+    siscanScanPermutations: number,
+    siscanPValuePermutations: number,
+    siscanRandomSeed: number,
+    polishBreakpoints: number,
+    queryReferenceMode: number,
+    referenceGroups: number,
+    referenceGroupCount: number,
+    mask: number,
+    maskLength: number,
+    disabled: number,
+    disabledLength: number,
+  ): number;
+  _rdp_restore_signal(
+    handle: number,
+    triplet0: number,
+    triplet1: number,
+    triplet2: number,
+    recombinant: number,
+    majorParent: number,
+    minorParent: number,
+    beginning: number,
+    ending: number,
+    wrapsOrigin: number,
+    informativeBeginning: number,
+    informativeEnding: number,
+    localPValue: number,
+    correctedPValue: number,
+    correctionTests: number,
+    pairSimilarity0: number,
+    pairSimilarity1: number,
+    pairSimilarity2: number,
+    informativeSites: number,
+    candidatePair: number,
+    fragmentAssisted: number,
+    fragmentEvent0: number,
+    fragmentEvent1: number,
+    fragmentEvent2: number,
+    reviewState: number,
+    eventId: number,
+    method: number,
+  ): number;
+  _rdp_restore_maxchi_discovery(
+    handle: number,
+    signalId: number,
+    peakPair: number,
+    tractSide: number,
+    peakAttempt: number,
+    peakAlignmentPosition: number,
+    variableSites: number,
+    initialHalfWindow: number,
+    grownHalfWindow: number,
+    criticalDifference: number,
+    maximumChiSquare: number,
+    rawPValue: number,
+    withinTripletPValue: number,
+    leftFlankChiSquare: number,
+    rightFlankChiSquare: number,
+    missingDataWindowFilterApplied: number,
+    linearEdgeWindowFilterApplied: number,
+  ): number;
+  _rdp_restore_chimaera_discovery(
+    handle: number,
+    signalId: number,
+    targetLocal: number,
+    tractSide: number,
+    peakAttempt: number,
+    peakAlignmentPosition: number,
+    informationRichSites: number,
+    initialHalfWindow: number,
+    grownHalfWindow: number,
+    criticalDifference: number,
+    maximumChiSquare: number,
+    rawPValue: number,
+    withinTripletPValue: number,
+    leftFlankChiSquare: number,
+    rightFlankChiSquare: number,
+    insideParentOneMatchRate: number,
+    outsideParentOneMatchRate: number,
+    missingDataWindowFilterApplied: number,
+    linearEdgeWindowFilterApplied: number,
+  ): number;
+  _rdp_restore_geneconv_discovery(
+    handle: number,
+    signalId: number,
+    track: number,
+    polymorphicSites: number,
+    positiveSites: number,
+    discordantSites: number,
+    mismatchPenalty: number,
+    fragmentScore: number,
+    criticalScore: number,
+    lambda: number,
+    karlinAltschulK: number,
+    rawPValue: number,
+  ): number;
+  _rdp_restore_threeseq_discovery(
+    handle: number,
+    signalId: number,
+    targetLocal: number,
+    walkDirection: number,
+    informationRichSites: number,
+    parentOneMatches: number,
+    parentTwoMatches: number,
+    probabilityExcursion: number,
+    maximumExcursion: number,
+    rawPValue: number,
+    exactProbability: number,
+    siegmundFallback: number,
+    missingDataSplitApplied: number,
+  ): number;
+  _rdp_restore_bootscan_discovery(
+    handle: number,
+    signalId: number,
+    supportedPair: number,
+    windowsScored: number,
+    usableWindows: number,
+    informativeSites: number,
+    tractInformativeSites: number,
+    tractPairMatches: number,
+    outsidePairMatches: number,
+    maximumPairSupport: number,
+    meanPairSupport: number,
+    bootstrapPValue: number,
+    rawPValue: number,
+    erasedWindowFilterApplied: number,
+  ): number;
+  _rdp_restore_siscan_discovery(
+    handle: number,
+    signalId: number,
+    globalPair: number,
+    candidatePair: number,
+    outlierSequence: number,
+    windowsInRegion: number,
+    informativeSites: number,
+    permutationDraws: number,
+    selectedScore: number,
+    selectedScoreFamily: number,
+    maximumZ: number,
+    normalTailPValue: number,
+    regionLengthAdjustedPValue: number,
+    windowAdjustedPValue: number,
+  ): number;
+  _rdp_restore_scan_finish(
+    handle: number,
+    correctionTests: number,
+    cumulativeTriplets: number,
+    scanRounds: number,
+    maxChiProfilesScanned: number,
+    maxChiPeakAttempts: number,
+    maxChiCandidatesFound: number,
+    maxChiPeakLimitTriplets: number,
+    chimaeraProfilesScanned: number,
+    chimaeraPeakAttempts: number,
+    chimaeraCandidatesFound: number,
+    chimaeraPeakLimitTargets: number,
+    geneconvFragmentsScored: number,
+    geneconvQualifiedFragments: number,
+    geneconvCandidatesFound: number,
+    geneconvOverlapRejections: number,
+    geneconvNumericalFallbackTracks: number,
+    threeSeqProfilesScanned: number,
+    threeSeqExactEvaluations: number,
+    threeSeqApproximateEvaluations: number,
+    threeSeqCandidatesFound: number,
+    bootscanProfilesScanned: number,
+    bootscanCandidateRegionsScored: number,
+    bootscanCandidatesFound: number,
+    bootscanPairProfilesRequested: number,
+    bootscanPairProfileCacheHits: number,
+    bootscanPairProfileCacheMisses: number,
+    bootscanPairProfileCacheEvictions: number,
+    bootscanPairProfileCachePeakBytes: number,
+    siscanProfilesScanned: number,
+    siscanWindowsScored: number,
+    siscanCandidateRegionsScored: number,
+    siscanCandidatesFound: number,
+    siscanPermutationDraws: number,
+    siscanContextBuilds: number,
+    siscanContextPairComparisons: number,
+    siscanContextTreeMerges: number,
+    siscanRandomValuesGenerated: number,
+    cycleTermination: number,
+    cycleTerminationLength: number,
+  ): number;
+  _rdp_restore_event_state(
+    handle: number,
+    eventId: number,
+    anchorSignalId: number,
+    recombinant: number,
+    majorParent: number,
+    minorParent: number,
+    beginning: number,
+    ending: number,
+    detectionRound: number,
+    tractErasedForDetection: number,
+    reviewState: number,
+    manualAdjusted: number,
+    coRecombinantSequences: number,
+    coRecombinantSequenceCount: number,
+    groupManualAdjusted: number,
+  ): number;
+  _rdp_restore_reconciliation_required_after(handle: number, eventId: number): number;
+  _rdp_export_csv(handle: number): number;
+  _rdp_export_enabled_sequences_fasta(
+    handle: number,
+    mask: number,
+    maskLength: number,
+    disabled: number,
+    disabledLength: number,
+  ): number;
+  _rdp_export_masked_or_disabled_sequences_fasta(
+    handle: number,
+    mask: number,
+    maskLength: number,
+    disabled: number,
+    disabledLength: number,
+  ): number;
+  _rdp_export_recombinant_sequences_removed_fasta(handle: number): number;
+  _rdp_export_recombinant_columns_removed_fasta(handle: number): number;
+  _rdp_export_recombination_free_fasta(handle: number): number;
+  _rdp_export_fragmented_fasta(handle: number): number;
+  _rdp_export_project_json(handle: number): number;
+  _rdp_get_error(handle: number): number;
 }
 
-type CoreFactory = (options: { locateFile: (path: string) => string }) => Promise<CoreModule>;
+type ModuleFactory = (options: {
+  locateFile: (path: string) => string;
+  noInitialRun: boolean;
+}) => Promise<EmscriptenModule>;
 
-let core: CoreModule | null = null;
-let initialization: Promise<CoreModule> | null = null;
+let module: EmscriptenModule | null = null;
+let context = 0;
+let dataset: DatasetSummary | null = null;
+let datasetName = "";
+let threaded = false;
+let scanActive = false;
+let lastProgressEmission = Number.NEGATIVE_INFINITY;
+let hardwareConcurrency = Math.max(1, Math.trunc(scopeNavigatorHardwareConcurrency()));
+let maximumThreads = 1;
+let recommendedThreads = 1;
+let requestedThreads = 1;
+let activeThreads = 1;
+let scanMethodThreadCapacity = 1;
+let activeScanTimer: ScanTimer | null = null;
+let lastScanTiming: ScanTiming | null = null;
+let lastScanExecution: ScanExecution | null = null;
+let sourceFaithfulCore = false;
+let sourceFaithfulFasta = "";
+let sourceFaithfulResults: ScanResults | null = null;
 
-async function loadCore(baseUrl: string): Promise<CoreModule> {
-  if (core) return core;
-  if (!initialization) {
-    const moduleUrl = new URL("wasm/next-rdp-core-web.mjs", baseUrl).href;
-    initialization = import(/* @vite-ignore */ moduleUrl)
-      .then((loaded: { default: CoreFactory }) => loaded.default({
-        locateFile: (path) => new URL(path, moduleUrl).href,
-      }))
-      .then((loadedCore) => {
-        core = loadedCore;
-        return loadedCore;
-      });
+// Progress JSON construction crosses the WASM boundary, allocates a sizeable
+// string, parses it, posts a structured clone, and causes a React render. A
+// 100 ms ceiling keeps the Windows progress meter visibly alive without
+// allowing statistics rendering to dominate the scan.
+const PROGRESS_EMISSION_INTERVAL_MS = 100;
+const INITIAL_SCAN_BATCH = 512;
+const MINIMUM_SCAN_BATCH = 1;
+const MAXIMUM_SCAN_BATCH = 65_536;
+const TARGET_SCAN_SLICE_MS = 40;
+
+const scope = self as DedicatedWorkerGlobalScope;
+
+function scopeNavigatorHardwareConcurrency(): number {
+  return typeof navigator === "undefined" || !Number.isFinite(navigator.hardwareConcurrency)
+    ? 1
+    : navigator.hardwareConcurrency;
+}
+
+type TimedPhase = "setup" | "primary" | "cyclic-rescan" | "reconciliation" | "complete";
+
+class ScanTimer {
+  private readonly started = performance.now();
+  private readonly startedAt = new Date().toISOString();
+  private phase: TimedPhase = "setup";
+  private phaseStarted = this.started;
+  private setupMs = 0;
+  private primaryMs = 0;
+  private cyclicRescanMs = 0;
+  private reconciliationMs = 0;
+  private currentRound = 1;
+  private roundStarted = this.started;
+  private readonly rounds: ScanTiming["rounds"] = [];
+  private finished: number | null = null;
+
+  beginPrimary(now = performance.now()): void {
+    this.enter("primary", now);
+    this.roundStarted = now;
   }
-  return initialization;
-}
 
-function post(response: WorkerResponse): void {
-  self.postMessage(response);
-}
-
-self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
-  const request = event.data;
-  try {
-    if (request.type === "init") {
-      const loaded = await loadCore(request.baseUrl);
-      post({ id: request.id, ok: true, type: "ready", version: loaded.UTF8ToString(loaded._next_rdp_version()) });
-      return;
-    }
-
-    if (!core) throw new Error("The RDP core has not finished loading");
-    const bytes = new Uint8Array(request.bytes);
-    const pointer = core._malloc(bytes.byteLength);
-    if (!pointer) throw new Error("The RDP core could not allocate input memory");
-    try {
-      core.HEAPU8.set(bytes, pointer);
-      const ok = core._next_rdp_analyze(
-        pointer,
-        bytes.byteLength,
-        request.options.circular ? 1 : 0,
-        request.options.pValue,
-        request.options.windowSites,
-      );
-      if (!ok) throw new Error(core.UTF8ToString(core._next_rdp_error()) || "RDP analysis failed");
-      const result = JSON.parse(core.UTF8ToString(core._next_rdp_result_json())) as AnalysisResult;
-      post({ id: request.id, ok: true, type: "result", result });
-    } finally {
-      core._free(pointer);
-    }
-  } catch (caught) {
-    post({ id: request.id, ok: false, error: caught instanceof Error ? caught.message : String(caught) });
+  completeRound(now = performance.now()): void {
+    this.rounds.push({
+      round: this.currentRound,
+      elapsedMs: Math.max(0, now - this.roundStarted),
+      completed: true,
+    });
+    ++this.currentRound;
+    this.roundStarted = now;
+    if (this.currentRound === 2) this.enter("cyclic-rescan", now);
   }
+
+  beginReconciliation(completedRound: boolean, now = performance.now()): void {
+    this.rounds.push({
+      round: this.currentRound,
+      elapsedMs: Math.max(0, now - this.roundStarted),
+      completed: completedRound,
+    });
+    this.enter("reconciliation", now);
+  }
+
+  finish(now = performance.now()): ScanTiming {
+    if (this.finished === null) {
+      this.enter("complete", now);
+      this.finished = now;
+    }
+    return this.snapshot(this.finished);
+  }
+
+  snapshot(now = this.finished ?? performance.now()): ScanTiming {
+    let setupMs = this.setupMs;
+    let primaryMs = this.primaryMs;
+    let cyclicRescanMs = this.cyclicRescanMs;
+    let reconciliationMs = this.reconciliationMs;
+    const activeElapsed = Math.max(0, now - this.phaseStarted);
+    if (this.phase === "setup") setupMs += activeElapsed;
+    else if (this.phase === "primary") primaryMs += activeElapsed;
+    else if (this.phase === "cyclic-rescan") cyclicRescanMs += activeElapsed;
+    else if (this.phase === "reconciliation") reconciliationMs += activeElapsed;
+    return {
+      startedAt: this.startedAt,
+      totalMs: Math.max(0, now - this.started),
+      setupMs,
+      primaryMs,
+      cyclicRescanMs,
+      reconciliationMs,
+      currentRoundMs:
+        this.phase === "primary" || this.phase === "cyclic-rescan"
+          ? Math.max(0, now - this.roundStarted)
+          : 0,
+      rounds: [...this.rounds],
+    };
+  }
+
+  private enter(next: TimedPhase, now: number): void {
+    const elapsed = Math.max(0, now - this.phaseStarted);
+    if (this.phase === "setup") this.setupMs += elapsed;
+    else if (this.phase === "primary") this.primaryMs += elapsed;
+    else if (this.phase === "cyclic-rescan") this.cyclicRescanMs += elapsed;
+    else if (this.phase === "reconciliation") this.reconciliationMs += elapsed;
+    this.phase = next;
+    this.phaseStarted = now;
+  }
+}
+
+function scanExecution(): ScanExecution {
+  return lastScanExecution ?? {
+    mode: threaded && activeThreads > 1 ? "wasm-pthreads" : "single-worker",
+    requestedThreads,
+    activeThreads,
+    hardwareConcurrency,
+  };
+}
+
+function heavyMethodThreadCapacity(options: ScanOptions): number {
+  return Math.max(1, [
+    options.geneconvEnabled,
+    options.bootscanPrimaryEnabled,
+    options.maxChiEnabled,
+    options.chimaeraEnabled,
+    options.siscanPrimaryEnabled,
+    options.threeSeqEnabled,
+  ].filter(Boolean).length);
+}
+
+function decorateScanResults(results: ScanResults): ScanResults {
+  results.timing = lastScanTiming;
+  results.execution = scanExecution();
+  return results;
+}
+
+function respond(response: WorkerResponse): void {
+  scope.postMessage(response);
+}
+
+function value(pointer: number): string {
+  if (!module || pointer === 0) return "";
+  return module.UTF8ToString(pointer);
+}
+
+function engineError(fallback: string): Error {
+  if (!module || !context) return new Error(fallback);
+  return new Error(value(module._rdp_get_error(context)) || fallback);
+}
+
+function parseJson<T>(pointer: number, fallback: string): T {
+  const text = value(pointer);
+  if (!text) throw engineError(fallback);
+  return JSON.parse(text) as T;
+}
+
+type SourceFaithfulEvent = {
+  id: number;
+  winningRole: number;
+  probability: number;
+  beginning: number;
+  ending: number;
+  representativeSequences: [number, number, number];
+  sequenceGroups: [number[], number[], number[]];
 };
 
-export {};
+type SourceFaithfulResult = {
+  sourceFaithfulCore: true;
+  engineVersion: string;
+  sequenceCount: number;
+  sequenceLength: number;
+  tripletCount: number;
+  rawCandidateCount: number;
+  events: SourceFaithfulEvent[];
+};
+
+function emptyBreakpointBoundary(name: "beginning" | "ending", coordinate: number) {
+  return {
+    name,
+    inputCoordinate: coordinate,
+    polishedCoordinate: coordinate,
+    intervalAvailable: false,
+    sourceIntervalContainsInput: false,
+    confidence99: { beginning: -1, ending: -1, wrapsOrigin: false },
+    hmmCoordinate: -1,
+    confidence95: { beginning: -1, ending: -1, wrapsOrigin: false },
+    repositioned: false,
+    missingDataAdjusted: false,
+    finalGapAdjusted: false,
+  };
+}
+
+function makeSourceFaithfulResults(
+  raw: SourceFaithfulResult,
+  options: ScanOptions,
+  summary: DatasetSummary,
+): ScanResults {
+  const names = summary.sequences.map((sequence) => sequence.name);
+  const events = raw.events.map((rawEvent): ReconciledEvent => {
+    const representatives = rawEvent.representativeSequences;
+    const winner = Math.max(0, Math.min(2, rawEvent.winningRole));
+    const recombinant = representatives[winner];
+    const majorParent = representatives[(winner + 1) % 3];
+    const minorParent = representatives[(winner + 2) % 3];
+    const eventId = rawEvent.id;
+    const corrected = Math.max(0, Math.min(1, rawEvent.probability));
+    const boundaryContext = {
+      source: "cyclic-erasure-history" as const,
+      beginning: {
+        erasureAdjacent: false, erasureWithinRdpWindow: false, uncertainDueToErasure: false,
+        nativeCheckEndsApplied: false, nativeCheckEndsWarning: false,
+        informationProfileAvailable: false, inputMissingDataInCheckRange: false,
+        linearEdgeWithinRdpWindow: false, nativeCheckRange: { beginning: rawEvent.beginning, ending: rawEvent.beginning, wrapsOrigin: false, coordinateCount: 0 },
+        rdpWindowInformativeSites: 0, nearestErasureInformativeSites: null, uncertainPriorEventIds: [], priorEventIds: [],
+      },
+      ending: {
+        erasureAdjacent: false, erasureWithinRdpWindow: false, uncertainDueToErasure: false,
+        nativeCheckEndsApplied: false, nativeCheckEndsWarning: false,
+        informationProfileAvailable: false, inputMissingDataInCheckRange: false,
+        linearEdgeWithinRdpWindow: false, nativeCheckRange: { beginning: rawEvent.ending, ending: rawEvent.ending, wrapsOrigin: false, coordinateCount: 0 },
+        rdpWindowInformativeSites: 0, nearestErasureInformativeSites: null, uncertainErasureEventIds: [], priorEventIds: [],
+      },
+    };
+    const unavailable = (status = "profile-unavailable") => ({ status, profileAvailable: false, sourceRecheckHit: false });
+    const event = {
+      id: eventId,
+      anchorSignalId: eventId,
+      anchorMethod: "RDP",
+      detectionMethods: ["RDP"],
+      maxChiChimaeraOnlySupport: false,
+      detectionRound: 1,
+      erasedNucleotideSites: 0,
+      erasedWorkingSites: 0,
+      fragmentSequencesAdded: 0,
+      fragmentAssistedDetection: false,
+      tractErasedForDetection: false,
+      reconciliationBasis: "two-shared-sequences-and-30-percent-overlap",
+      recombinant,
+      recombinantName: names[recombinant] ?? `Sequence ${recombinant + 1}`,
+      queryReferenceInputRole: "not-applied",
+      referenceGroup: null,
+      majorParent,
+      majorParentName: names[majorParent] ?? `Sequence ${majorParent + 1}`,
+      minorParent,
+      minorParentName: names[minorParent] ?? `Sequence ${minorParent + 1}`,
+      beginning: rawEvent.beginning,
+      ending: rawEvent.ending,
+      wrapsOrigin: rawEvent.beginning > rawEvent.ending,
+      breakpointConfidence: {
+        status: "unavailable", method: "BURT/BenHMM", attempted: false, available: false,
+        appliedToEvent: false, informationRichSites: 0, candidateIntervalCount: 0, bestLogLikelihood: 0,
+        randomSeed: 3, randomAdapter: "msvc-rand-15-bit", sourceRandomAdapter: true,
+        hmmCyclesArgument: 20, serialTrainingStarts: 21, posteriorThresholds: [0.995, 0.999],
+        polishedBeginning: rawEvent.beginning, polishedEnding: rawEvent.ending,
+        singleTransitionAssignment: false, insufficientInsideOrOutsideReverted: false,
+        unavailableReason: "disabled", boundaries: [emptyBreakpointBoundary("beginning", rawEvent.beginning), emptyBreakpointBoundary("ending", rawEvent.ending)],
+      },
+      breakpointContext: boundaryContext,
+      maxChiTripletRecheck: unavailable(), chimaeraTripletRecheck: unavailable(), geneconvTripletRecheck: unavailable(),
+      threeSeqTripletRecheck: unavailable(), bootscanTripletRecheck: unavailable(), siscanTripletRecheck: unavailable(),
+      bestLocalPValue: corrected, bestCorrectedPValue: corrected,
+      supportSignalIds: [eventId], detectableSequenceIndices: [recombinant], detectableSequenceNames: [names[recombinant] ?? `Sequence ${recombinant + 1}`],
+      roleCandidateIndices: { recombinant: [recombinant], majorParent: [majorParent], minorParent: [minorParent] },
+      automaticCoRecombinantSequenceIndices: rawEvent.sequenceGroups[winner] ?? [recombinant],
+      automaticCoRecombinantSequenceNames: (rawEvent.sequenceGroups[winner] ?? [recombinant]).map((index) => names[index] ?? `Sequence ${index + 1}`),
+      coRecombinantSequenceIndices: rawEvent.sequenceGroups[winner] ?? [recombinant],
+      coRecombinantSequenceNames: (rawEvent.sequenceGroups[winner] ?? [recombinant]).map((index) => names[index] ?? `Sequence ${index + 1}`),
+      treePanel: { sequenceCount: 0, subsampled: false, sequenceCap: 0, njKernel: "supplied-clearcut-float", distanceEncoding: "source-tree2arrayp2-midpoint-ranks", bootstrapGenerator: "disabled-rdp-5.93-event-path", bootstrapSupport: "not-applied", negativeBranchPolicy: "absolute-five-decimal-serialization", analyticalBranchParsing: "four-decimal-clamped-complete-edge-repair", treeRooting: "source-tree2arrayp2-midpoint", collapseEncoding: "unbootstrapped-raw-tree-copy", randomSeed: 3, flankVariableSiteTarget: 0, regions: [] },
+      roleConsensus: { method: "source-decision-tree-subset", nativeWeightParity: false, involvedSequenceIndices: [recombinant, majorParent, minorParent], rcompatListIndices: [[], [], []], informative: false, recommendedRole: winner, recommendedRecombinant: recombinant, recommendedRecombinantName: names[recombinant] ?? `Sequence ${recombinant + 1}`, recommendedMajorParent: majorParent, recommendedMajorParentName: names[majorParent] ?? `Sequence ${majorParent + 1}`, recommendedMinorParent: minorParent, recommendedMinorParentName: names[minorParent] ?? `Sequence ${minorParent + 1}`, confidence: 1, votes: [0, 0, 0], metrics: [] },
+      roleHypotheses: [0, 1, 2].map(() => ({ presumedRecombinant: recombinant, presumedRecombinantName: names[recombinant] ?? `Sequence ${recombinant + 1}`, parentOne: majorParent, parentOneName: names[majorParent] ?? `Sequence ${majorParent + 1}`, parentTwo: minorParent, parentTwoName: names[minorParent] ?? `Sequence ${minorParent + 1}`, testedSequences: 3, validSequences: 3, detectableSignalSetIndices: [], detectableSignalSetNames: [], distanceCorrelationSetIndices: [], distanceCorrelationSetNames: [], phylogeneticCorrelationSetIndices: [], phylogeneticCorrelationSetNames: [], completeTwoOfThreeSetIndices: [], completeTwoOfThreeSetNames: [], correlationWarnings: [false, false, false], distanceCorrelationEvidence: [], phylogeneticCorrelationEvidence: [], phylogeneticCorrelationStatus: "complete", evidenceSetConsensusComplete: true, finalTrimDuplicateCorrelationStatus: "complete", finalTrimMatrixStatus: "complete-active-rff0", finalTrimMembershipStatus: "complete-active-rff0", calcMatchStatus: "complete-active-rff0-with-bounded-unavailable-cases", consensusScoreStatus: "complete-active", selectedTreeCleanupStatus: "complete-active", nativeGroupMembershipComplete: true, primaryRdpPostGroupRecheckStatus: "complete-active", nativePrimaryRdpRecheckComplete: true, maxChiPostGroupRecheckStatus: "source-shaped-strongest-peak-unvalidated", nativeMaxChiFullRecheckComplete: false, geneconvPostGroupRecheckStatus: "source-shaped-six-track-best-fragment-unvalidated", nativeGeneconvFullRecheckComplete: false, threeSeqPostGroupRecheckStatus: "source-shaped-findall-two-orientation-unvalidated", nativeThreeSeqFullRecheckComplete: false, bootscanPostGroupRecheckStatus: "source-shaped-distance-bootstrap-binomial-unvalidated", nativeBootscanFullRecheckComplete: false, siscanPostGroupRecheckStatus: "source-shaped-fixed-region-vertical-permutation-unvalidated", nativeSiscanFullRecheckComplete: false, lateNativeConsensusComplete: false })) as unknown as ReconciledEvent["roleHypotheses"],
+      traceEvidence: [], reviewState: "unreviewed", manualAdjusted: false, groupManualAdjusted: false, rolesProvisional: true,
+    } as unknown as ReconciledEvent;
+    return event;
+  });
+  const signals = events.map((event): RdpSignal => ({
+    id: event.id, method: "RDP", triplet: [event.recombinant, event.majorParent, event.minorParent], tripletNames: [event.recombinantName, event.majorParentName, event.minorParentName], recombinant: event.recombinant, recombinantName: event.recombinantName, queryReferenceInputRole: "not-applied", referenceGroup: null, majorParent: event.majorParent, majorParentName: event.majorParentName, minorParent: event.minorParent, minorParentName: event.minorParentName, beginning: event.beginning, ending: event.ending, wrapsOrigin: event.wrapsOrigin, informativeBeginning: event.beginning, informativeEnding: event.ending, localPValue: event.bestLocalPValue, correctedPValue: event.bestCorrectedPValue, correctionTests: raw.tripletCount, pairSimilarity: [0, 0, 0], informativeSites: 0, candidatePair: 0, maxChiDiscovery: null, chimaeraDiscovery: null, geneconvDiscovery: null, threeSeqDiscovery: null, bootscanDiscovery: null, siscanDiscovery: null, fragmentAssisted: false, fragmentEventContext: [null, null, null], eventId: event.id, reviewState: event.reviewState, provisionalRoles: true,
+  } as unknown as RdpSignal));
+  const total = raw.tripletCount;
+  return {
+    engineVersion: raw.engineVersion, status: "cyclic-three-set-reconciled", method: "RDP", analysisMode: "exploratory", queryReference: { active: false, querySequenceCount: 0, referenceSequenceCount: 0, referenceGroupCount: 0, tripletConstraint: "one-query-two-different-reference-groups", sourceCorrectionRule: "reference-group-pairs-times-query-origins" }, discoveryMethods: ["RDP"], reconciliationTier: "detectable-distance-phylogenetic", cycleMode: "strongest-first-tract-erasure-with-bounded-fragment-reentry", lateConsensus: {} as ScanResults["lateConsensus"], breakpointInspection: {} as ScanResults["breakpointInspection"], treeInspection: {} as ScanResults["treeInspection"], phylproInspection: {} as ScanResults["phylproInspection"], finalAlignmentReady: false, fragmentReentry: false, fragmentReentryAlignmentLengthLimit: 0, fragmentSequenceCap: 0, fragmentReentryCapped: false, workingSequenceCount: summary.sequenceCount, workingFragmentSequenceCount: summary.sequenceCount, activeWorkingSequenceCount: summary.activeSequenceCount, queryWorkingSequenceCount: 0, referenceWorkingSequenceCount: 0, activeReferenceGroupCount: 0, processedTriplets: total, totalTriplets: total, scanRounds: 1, maximumDetectionCycles: 1000, cumulativeTriplets: total, maxChiProfilesScanned: 0, maxChiPeakAttempts: 0, maxChiCandidatesFound: 0, maxChiPeakLimitTriplets: 0, chimaeraProfilesScanned: 0, chimaeraPeakAttempts: 0, chimaeraCandidatesFound: 0, chimaeraPeakLimitTargets: 0, geneconvFragmentsScored: 0, geneconvQualifiedFragments: 0, geneconvCandidatesFound: 0, geneconvOverlapRejections: 0, geneconvNumericalFallbackTracks: 0, threeSeqProfilesScanned: 0, threeSeqExactEvaluations: 0, threeSeqApproximateEvaluations: 0, threeSeqCandidatesFound: 0, bootscanProfilesScanned: 0, bootscanCandidateRegionsScored: 0, bootscanCandidatesFound: 0, bootscanPairProfilesRequested: 0, bootscanPairProfileCacheHits: 0, bootscanPairProfileCacheMisses: 0, bootscanPairProfileCacheEvictions: 0, bootscanPairProfileCachePeakBytes: 0, siscanProfilesScanned: 0, siscanWindowsScored: 0, siscanCandidateRegionsScored: 0, siscanCandidatesFound: 0, siscanPermutationDraws: 0, siscanContextBuilds: 0, siscanContextPairComparisons: 0, siscanContextTreeMerges: 0, siscanRandomValuesGenerated: 0, cycleTermination: "complete", correction: options.correction, correctionTests: total, circular: options.circular, maskedSequenceIndices: options.maskedSequenceIndices, disabledSequenceIndices: options.disabledSequenceIndices, referenceGroupIndices: options.referenceGroupIndices, downstreamReconciliationRequiredAfter: null, pValueCutoff: options.pValueCutoff, windowSites: options.windowSites, maxChiEnabled: false, maxChiWindowSites: options.maxChiWindowSites, chimaeraEnabled: false, chimaeraWindowSites: options.chimaeraWindowSites, geneconvEnabled: false, geneconvMismatchScale: options.geneconvMismatchScale, geneconvMaxOverlaps: options.geneconvMaxOverlaps, threeSeqEnabled: false, bootscanPrimaryEnabled: false, bootscanSecondaryEnabled: false, bootscanWindowSites: options.bootscanWindowSites, bootscanStepSites: options.bootscanStepSites, bootscanBootstrapReplicates: options.bootscanBootstrapReplicates, bootscanSupportCutoff: options.bootscanSupportCutoff, bootscanRandomSeed: options.bootscanRandomSeed, siscanPrimaryEnabled: false, siscanSecondaryEnabled: false, siscanWindowSites: options.siscanWindowSites, siscanStepSites: options.siscanStepSites, siscanScanPermutations: options.siscanScanPermutations, siscanPValuePermutations: options.siscanPValuePermutations, siscanRandomSeed: options.siscanRandomSeed, polishBreakpoints: false, timing: null, execution: scanExecution(), signals, events, notes: ["Source-faithful nextRDP-core RDP execution. Other discovery methods are intentionally disabled in this web build."] ,
+  } as ScanResults;
+}
+
+async function importFactory(url: string): Promise<ModuleFactory> {
+  const imported = (await import(/* @vite-ignore */ url)) as { default: ModuleFactory };
+  return imported.default;
+}
+
+async function initialise(
+  wasmBaseUrl: string,
+  assetVersion: string,
+): Promise<EngineRuntimeInfo> {
+  if (module) {
+    return {
+      threaded,
+      version: value(module._rdp_version()),
+      hardwareConcurrency,
+      maximumThreads,
+      recommendedThreads,
+    };
+  }
+
+  const base = wasmBaseUrl.endsWith("/") ? wasmBaseUrl : `${wasmBaseUrl}/`;
+  const assetUrl = (path: string) => {
+    const url = new URL(path, base);
+    url.searchParams.set("v", assetVersion);
+    return url.href;
+  };
+  const canThread = scope.crossOriginIsolated && typeof SharedArrayBuffer !== "undefined";
+  // nextRDP-core exposes one source-faithful session module. Its RDP round is
+  // deliberately deterministic; there is no separate legacy multi-method
+  // pthread artifact to select here.
+  const candidates = [{ name: "next-rdp-core-web.mjs", threaded: false }];
+
+  let lastError: unknown = null;
+  for (const candidate of candidates) {
+    try {
+      const factory = await importFactory(assetUrl(candidate.name));
+      module = await factory({
+        noInitialRun: true,
+        locateFile: assetUrl,
+      });
+      context = module._rdp_create();
+      if (!context) throw new Error("The WASM engine could not allocate an analysis context.");
+      const loadedVersion = value(module._rdp_version());
+      if (loadedVersion !== assetVersion && !loadedVersion.startsWith("nextRDP-core ")) {
+        module._rdp_destroy(context);
+        context = 0;
+        throw new Error(
+          `The UI expects engine ${assetVersion}, but the host returned ${loadedVersion || "an unversioned engine"}.`,
+        );
+      }
+      sourceFaithfulCore = loadedVersion.startsWith("nextRDP-core ");
+      threaded = candidate.threaded && !sourceFaithfulCore;
+      hardwareConcurrency = Math.max(1, Math.trunc(scopeNavigatorHardwareConcurrency()));
+      maximumThreads = threaded ? Math.max(1, Math.min(6, hardwareConcurrency)) : 1;
+      recommendedThreads = threaded
+        ? Math.max(1, Math.min(maximumThreads, Math.floor(hardwareConcurrency * 0.75)))
+        : 1;
+      requestedThreads = recommendedThreads;
+      activeThreads = module._rdp_set_worker_threads(context, recommendedThreads) || 1;
+      return {
+        threaded,
+        version: loadedVersion,
+        hardwareConcurrency,
+        maximumThreads,
+        recommendedThreads,
+      };
+    } catch (error) {
+      module = null;
+      context = 0;
+      lastError = error;
+    }
+  }
+
+  const detail = lastError instanceof Error ? lastError.message : String(lastError ?? "unknown error");
+  throw new Error(
+    `The RDP WASM module is not available (${detail}). Build it with npm run build:wasm before running the app.`,
+  );
+}
+
+function copyBytes(bytes: Uint8Array): number {
+  if (!module) throw new Error("The engine has not been initialised.");
+  const pointer = module._malloc(Math.max(1, bytes.byteLength));
+  if (!pointer) throw new Error("The WASM heap could not allocate the input alignment.");
+  module.HEAPU8.set(bytes, pointer);
+  return pointer;
+}
+
+function copyUint32(values: number[]): number {
+  const encoded = new Uint32Array(values);
+  return copyBytes(new Uint8Array(encoded.buffer));
+}
+
+function exportCuratedSequences(
+  maskedSequenceIndices: number[],
+  disabledSequenceIndices: number[],
+  includeEnabled: boolean,
+): string {
+  if (!module || !context || !dataset) throw new Error("Load an alignment before exporting it.");
+  const mask = new Uint8Array(dataset.sequenceCount);
+  maskedSequenceIndices.forEach((value) => {
+    const index = integer(value, -1);
+    if (index >= 0 && index < mask.length) mask[index] = 1;
+  });
+  const disabled = new Uint8Array(dataset.sequenceCount);
+  disabledSequenceIndices.forEach((value) => {
+    const index = integer(value, -1);
+    if (index >= 0 && index < disabled.length) {
+      disabled[index] = 1;
+      mask[index] = 0;
+    }
+  });
+  const maskPointer = copyBytes(mask);
+  const disabledPointer = copyBytes(disabled);
+  try {
+    const pointer = includeEnabled
+      ? module._rdp_export_enabled_sequences_fasta(
+          context,
+          maskPointer,
+          mask.length,
+          disabledPointer,
+          disabled.length,
+        )
+      : module._rdp_export_masked_or_disabled_sequences_fasta(
+          context,
+          maskPointer,
+          mask.length,
+          disabledPointer,
+          disabled.length,
+        );
+    const fasta = value(pointer);
+    if (!fasta) {
+      throw engineError(
+        includeEnabled
+          ? "The enabled-only alignment is empty."
+          : "The masked/disabled-only alignment is empty.",
+      );
+    }
+    return fasta;
+  } finally {
+    module._free(maskPointer);
+    module._free(disabledPointer);
+  }
+}
+
+function reviewStateCode(state: unknown): number {
+  return state === "accepted" ? 1 : state === "rejected" ? 2 : 0;
+}
+
+function finiteNumber(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function integer(value: unknown, fallback = 0): number {
+  return Math.trunc(finiteNumber(value, fallback));
+}
+
+function requireObject(value: unknown, message: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(message);
+  return value as Record<string, unknown>;
+}
+
+function requireString(value: unknown, message: string): string {
+  if (typeof value !== "string") throw new Error(message);
+  return value;
+}
+
+function requireArray(value: unknown, message: string): unknown[] {
+  if (!Array.isArray(value)) throw new Error(message);
+  return value;
+}
+
+function restoredScanTiming(value: unknown): ScanTiming | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const timing = value as Record<string, unknown>;
+  const startedAt = typeof timing.startedAt === "string" ? timing.startedAt : "";
+  const rounds = Array.isArray(timing.rounds)
+    ? timing.rounds.flatMap((entry) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+        const round = entry as Record<string, unknown>;
+        const index = integer(round.round, -1);
+        const elapsedMs = finiteNumber(round.elapsedMs, -1);
+        if (index < 1 || elapsedMs < 0) return [];
+        return [{
+          round: index,
+          elapsedMs,
+          completed: round.completed !== false,
+        }];
+      })
+    : [];
+  const totalMs = finiteNumber(timing.totalMs, -1);
+  if (!startedAt || totalMs < 0) return null;
+  return {
+    startedAt,
+    totalMs,
+    setupMs: Math.max(0, finiteNumber(timing.setupMs)),
+    primaryMs: Math.max(0, finiteNumber(timing.primaryMs)),
+    cyclicRescanMs: Math.max(0, finiteNumber(timing.cyclicRescanMs)),
+    reconciliationMs: Math.max(0, finiteNumber(timing.reconciliationMs)),
+    currentRoundMs: 0,
+    rounds,
+  };
+}
+
+function restoredScanExecution(value: unknown): ScanExecution | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const execution = value as Record<string, unknown>;
+  const mode = execution.mode === "wasm-pthreads" ? "wasm-pthreads" :
+    execution.mode === "single-worker" ? "single-worker" : null;
+  if (!mode) return null;
+  const savedHardware = Math.max(1, integer(execution.hardwareConcurrency, 1));
+  const savedRequested = Math.max(1, integer(execution.requestedThreads, 1));
+  const savedActive = Math.max(1, integer(execution.activeThreads, 1));
+  return {
+    mode,
+    requestedThreads: savedRequested,
+    activeThreads: savedActive,
+    hardwareConcurrency: savedHardware,
+  };
+}
+
+function loadAlignment(name: string, bytes: ArrayBuffer): DatasetSummary {
+  if (!module || !context) throw new Error("The engine has not been initialised.");
+  activeScanTimer = null;
+  lastScanTiming = null;
+  lastScanExecution = null;
+  scanMethodThreadCapacity = 1;
+  const input = new Uint8Array(bytes);
+  if (sourceFaithfulCore) {
+    sourceFaithfulFasta = new TextDecoder().decode(input);
+    sourceFaithfulResults = null;
+  }
+  const pointer = copyBytes(input);
+  try {
+    if (module._rdp_load_alignment(context, pointer, input.byteLength) !== 1) {
+      throw engineError("The alignment could not be loaded.");
+    }
+    dataset = parseJson<DatasetSummary>(
+      module._rdp_get_summary_json(context),
+      "The alignment summary was not returned.",
+    );
+    datasetName = name;
+    return dataset;
+  } finally {
+    module._free(pointer);
+  }
+}
+
+function restoreProject(name: string, bytes: ArrayBuffer): ImportedProject {
+  if (!module || !context) throw new Error("The engine has not been initialised.");
+  if (sourceFaithfulCore) {
+    const root = requireObject(JSON.parse(new TextDecoder().decode(bytes)), "The selected project contains invalid JSON.");
+    const savedDataset = requireObject(root.dataset, "The project has no saved alignment.");
+    const records = requireArray(savedDataset.sequences, "The project has no saved sequences.");
+    const fasta = records.map((raw, index) => {
+      const record = requireObject(raw, `Saved sequence ${index + 1} is invalid.`);
+      return `>${requireString(record.name, `Saved sequence ${index + 1} has no name. `)}\n${requireString(record.sequence, `Saved sequence ${index + 1} has no data. `)}`;
+    }).join("\n") + "\n";
+    const loaded = loadAlignment(name, new TextEncoder().encode(fasta).buffer);
+    const savedAnalysis = root.analysis;
+    sourceFaithfulResults = savedAnalysis && typeof savedAnalysis === "object" ? savedAnalysis as ScanResults : null;
+    return { dataset: loaded, results: sourceFaithfulResults, sourceFilename: typeof root.sourceFilename === "string" ? root.sourceFilename : name };
+  }
+  scanMethodThreadCapacity = 1;
+  let root: Record<string, unknown>;
+  try {
+    root = requireObject(
+      JSON.parse(new TextDecoder().decode(bytes)),
+      "The selected file is not an RDP Web project.",
+    );
+  } catch (error) {
+    if (error instanceof SyntaxError) throw new Error("The selected project contains invalid JSON.");
+    throw error;
+  }
+  const schema = requireString(root.schema, "The project schema identifier is missing.");
+  if (
+    schema !== "org.rdp-web.project/v1alpha1" &&
+    schema !== "org.rdp-web.project/v1alpha2" &&
+    schema !== "org.rdp-web.project/v1alpha3" &&
+    schema !== "org.rdp-web.project/v1alpha4" &&
+    schema !== "org.rdp-web.project/v1alpha5" &&
+    schema !== "org.rdp-web.project/v1alpha6" &&
+    schema !== "org.rdp-web.project/v1alpha7" &&
+    schema !== "org.rdp-web.project/v1alpha8" &&
+    schema !== "org.rdp-web.project/v1alpha9" &&
+    schema !== "org.rdp-web.project/v1alpha10" &&
+    schema !== "org.rdp-web.project/v1alpha11" &&
+    schema !== "org.rdp-web.project/v1alpha12" &&
+    schema !== "org.rdp-web.project/v1alpha13" &&
+    schema !== "org.rdp-web.project/v1alpha14" &&
+    schema !== "org.rdp-web.project/v1alpha15" &&
+    schema !== "org.rdp-web.project/v1alpha16" &&
+    schema !== "org.rdp-web.project/v1alpha17" &&
+    schema !== "org.rdp-web.project/v1alpha18" &&
+    schema !== "org.rdp-web.project/v1alpha19"
+  ) {
+    throw new Error(`Unsupported RDP Web project schema: ${schema}`);
+  }
+  const savedDataset = requireObject(root.dataset, "The project has no saved alignment.");
+  const records = requireArray(savedDataset.sequences, "The project has no saved sequences.");
+  if (records.length < 3) throw new Error("The saved project contains fewer than three sequences.");
+
+  if (module._rdp_restore_alignment_begin(context, records.length) !== 1) {
+    throw engineError("The saved alignment could not be prepared for restoration.");
+  }
+  const encoder = new TextEncoder();
+  records.forEach((record, index) => {
+    const value = requireObject(record, `Saved sequence ${index + 1} is invalid.`);
+    const sequenceName = requireString(value.name, `Saved sequence ${index + 1} has no name.`);
+    const sequence = requireString(value.sequence, `Saved sequence ${index + 1} has no data.`);
+    const nameBytes = encoder.encode(sequenceName);
+    const sequenceBytes = encoder.encode(sequence);
+    const namePointer = copyBytes(nameBytes);
+    const sequencePointer = copyBytes(sequenceBytes);
+    try {
+      if (
+        module!._rdp_restore_alignment_record(
+          context,
+          index,
+          namePointer,
+          nameBytes.byteLength,
+          sequencePointer,
+          sequenceBytes.byteLength,
+        ) !== 1
+      ) {
+        throw engineError(`Saved sequence ${index + 1} could not be restored.`);
+      }
+    } finally {
+      module!._free(namePointer);
+      module!._free(sequencePointer);
+    }
+  });
+  const formatBytes = encoder.encode(
+    typeof savedDataset.format === "string" ? savedDataset.format : "RDP Web project",
+  );
+  const formatPointer = copyBytes(formatBytes);
+  try {
+    if (
+      module._rdp_restore_alignment_finish(context, formatPointer, formatBytes.byteLength) !== 1
+    ) {
+      throw engineError("The saved alignment could not be restored.");
+    }
+  } finally {
+    module._free(formatPointer);
+  }
+
+  const restoredDataset = parseJson<DatasetSummary>(
+    module._rdp_get_summary_json(context),
+    "The restored alignment summary was not returned.",
+  );
+  dataset = restoredDataset;
+  datasetName = typeof root.sourceFilename === "string" ? root.sourceFilename : name;
+
+  const rawAnalysis = root.analysis;
+  if (!rawAnalysis) {
+    lastScanTiming = null;
+    lastScanExecution = null;
+    return { dataset: restoredDataset, results: null, sourceFilename: datasetName };
+  }
+  const analysis = requireObject(rawAnalysis, "The saved analysis is invalid.");
+  lastScanTiming = restoredScanTiming(analysis.timing);
+  lastScanExecution = restoredScanExecution(analysis.execution);
+  const savedSignals = requireArray(analysis.signals, "The saved analysis has no discovery signals.");
+  const savedEvents = Array.isArray(analysis.events) ? analysis.events : [];
+  const pending = integer(analysis.downstreamReconciliationRequiredAfter, -1);
+  if (pending >= savedEvents.length) {
+    throw new Error("The saved downstream reconciliation marker refers to an unknown event.");
+  }
+  const eventsToRestore = (pending >= 0 ? savedEvents.slice(0, pending + 1) : savedEvents).map(
+    (rawEvent, index) =>
+      requireObject(rawEvent, `Saved event ${index + 1} is invalid.`),
+  );
+
+  // A role, breakpoint, group, or rejection correction invalidates every event
+  // detected after the changed event. Saved projects retain that stale tail for
+  // auditability, but a reload must rebuild only the valid prefix and its signal
+  // evidence before the user resumes cyclic screening.
+  const retainedSignalIds = new Set<number>();
+  if (pending >= 0) {
+    eventsToRestore.forEach((savedEvent) => {
+      const anchorSignalId = integer(savedEvent.anchorSignalId, -1);
+      if (anchorSignalId >= 0) retainedSignalIds.add(anchorSignalId);
+      if (Array.isArray(savedEvent.supportSignalIds)) {
+        savedEvent.supportSignalIds.forEach((signalId) => {
+          const index = integer(signalId, -1);
+          if (index >= 0) retainedSignalIds.add(index);
+        });
+      }
+    });
+    savedSignals.forEach((rawSignal, index) => {
+      const signal = requireObject(rawSignal, `Saved signal ${index + 1} is invalid.`);
+      const eventId = integer(signal.eventId, -1);
+      if (eventId >= 0 && eventId <= pending) retainedSignalIds.add(index);
+    });
+  }
+
+  const signalsToRestore = savedSignals
+    .map((rawSignal, savedIndex) => ({ rawSignal, savedIndex }))
+    .filter(({ savedIndex }) => pending < 0 || retainedSignalIds.has(savedIndex));
+  const signalIdMap = new Map<number, number>();
+  signalsToRestore.forEach(({ savedIndex }, restoredIndex) => {
+    signalIdMap.set(savedIndex, restoredIndex);
+  });
+  const masked = new Uint8Array(restoredDataset.sequenceCount);
+  if (Array.isArray(analysis.maskedSequenceIndices)) {
+    analysis.maskedSequenceIndices.forEach((value) => {
+      const index = integer(value, -1);
+      if (index >= 0 && index < masked.length) masked[index] = 1;
+    });
+  }
+  const disabled = new Uint8Array(restoredDataset.sequenceCount);
+  if (Array.isArray(analysis.disabledSequenceIndices)) {
+    analysis.disabledSequenceIndices.forEach((value) => {
+      const index = integer(value, -1);
+      if (index >= 0 && index < disabled.length) {
+        disabled[index] = 1;
+        masked[index] = 0;
+      }
+    });
+  }
+  const supportsReferenceGroups =
+    schema === "org.rdp-web.project/v1alpha11" ||
+    schema === "org.rdp-web.project/v1alpha12" ||
+    schema === "org.rdp-web.project/v1alpha13" ||
+    schema === "org.rdp-web.project/v1alpha14" ||
+    schema === "org.rdp-web.project/v1alpha15" ||
+    schema === "org.rdp-web.project/v1alpha16" ||
+    schema === "org.rdp-web.project/v1alpha17" ||
+    schema === "org.rdp-web.project/v1alpha18" ||
+    schema === "org.rdp-web.project/v1alpha19";
+  const supportsMaxChiDiscovery =
+    schema === "org.rdp-web.project/v1alpha10" || supportsReferenceGroups;
+  const supportsChimaeraDiscovery =
+    schema === "org.rdp-web.project/v1alpha12" ||
+    schema === "org.rdp-web.project/v1alpha13" ||
+    schema === "org.rdp-web.project/v1alpha14" ||
+    schema === "org.rdp-web.project/v1alpha15" ||
+    schema === "org.rdp-web.project/v1alpha16" ||
+    schema === "org.rdp-web.project/v1alpha17" ||
+    schema === "org.rdp-web.project/v1alpha18" ||
+    schema === "org.rdp-web.project/v1alpha19";
+  const supportsGeneconvDiscovery =
+    schema === "org.rdp-web.project/v1alpha13" ||
+    schema === "org.rdp-web.project/v1alpha14" ||
+    schema === "org.rdp-web.project/v1alpha15" ||
+    schema === "org.rdp-web.project/v1alpha16" ||
+    schema === "org.rdp-web.project/v1alpha17" ||
+    schema === "org.rdp-web.project/v1alpha18" ||
+    schema === "org.rdp-web.project/v1alpha19";
+  const supportsThreeSeqDiscovery =
+    schema === "org.rdp-web.project/v1alpha14" ||
+    schema === "org.rdp-web.project/v1alpha15" ||
+    schema === "org.rdp-web.project/v1alpha16" ||
+    schema === "org.rdp-web.project/v1alpha17" ||
+    schema === "org.rdp-web.project/v1alpha18" ||
+    schema === "org.rdp-web.project/v1alpha19";
+  const supportsThreeSeqSplit =
+    schema === "org.rdp-web.project/v1alpha15" ||
+    schema === "org.rdp-web.project/v1alpha16" ||
+    schema === "org.rdp-web.project/v1alpha17" ||
+    schema === "org.rdp-web.project/v1alpha18" ||
+    schema === "org.rdp-web.project/v1alpha19";
+  const supportsBootscanSecondary =
+    schema === "org.rdp-web.project/v1alpha16" ||
+    schema === "org.rdp-web.project/v1alpha17" ||
+    schema === "org.rdp-web.project/v1alpha18" ||
+    schema === "org.rdp-web.project/v1alpha19";
+  const supportsBootscanPrimary =
+    schema === "org.rdp-web.project/v1alpha17" ||
+    schema === "org.rdp-web.project/v1alpha18" ||
+    schema === "org.rdp-web.project/v1alpha19";
+  const supportsSiscan = schema === "org.rdp-web.project/v1alpha19";
+  scanMethodThreadCapacity = Math.max(1,
+    Number(supportsGeneconvDiscovery && analysis.geneconvEnabled !== false) +
+    Number(supportsBootscanPrimary && analysis.bootscanPrimaryEnabled === true) +
+    Number(supportsMaxChiDiscovery && analysis.maxChiEnabled !== false) +
+    Number(supportsChimaeraDiscovery && analysis.chimaeraEnabled !== false) +
+    Number(supportsSiscan && analysis.siscanPrimaryEnabled === true) +
+    Number(supportsThreeSeqDiscovery && analysis.threeSeqEnabled !== false));
+  activeThreads = module._rdp_set_worker_threads(
+    context,
+    Math.min(recommendedThreads, scanMethodThreadCapacity),
+  ) || 1;
+  const referenceGroups = new Array<number>(restoredDataset.sequenceCount).fill(0);
+  if (supportsReferenceGroups &&
+      Array.isArray(analysis.referenceGroupIndices)) {
+    analysis.referenceGroupIndices.slice(0, referenceGroups.length).forEach((value, index) => {
+      referenceGroups[index] = Math.max(0, Math.min(0xffff_ffff, integer(value)));
+    });
+  }
+  const maskPointer = copyBytes(masked);
+  const disabledPointer = copyBytes(disabled);
+  const referenceGroupsPointer = copyUint32(referenceGroups);
+  try {
+    if (
+      module._rdp_restore_scan_begin(
+        context,
+        analysis.circular === false ? 0 : 1,
+        analysis.correction === "none" ? 1 : 0,
+        finiteNumber(analysis.pValueCutoff, 0.05),
+        integer(analysis.windowSites, 30),
+        supportsMaxChiDiscovery && analysis.maxChiEnabled !== false ? 1 : 0,
+        integer(analysis.maxChiWindowSites, 70),
+        supportsChimaeraDiscovery && analysis.chimaeraEnabled !== false ? 1 : 0,
+        integer(analysis.chimaeraWindowSites, 60),
+        supportsGeneconvDiscovery && analysis.geneconvEnabled !== false ? 1 : 0,
+        integer(analysis.geneconvMismatchScale, 1),
+        integer(analysis.geneconvMaxOverlaps, 1),
+        supportsThreeSeqDiscovery && analysis.threeSeqEnabled !== false ? 1 : 0,
+        supportsBootscanPrimary && analysis.bootscanPrimaryEnabled === true ? 1 : 0,
+        supportsBootscanSecondary && analysis.bootscanSecondaryEnabled === true ? 1 : 0,
+        integer(analysis.bootscanWindowSites, 200),
+        integer(analysis.bootscanStepSites, 20),
+        integer(analysis.bootscanBootstrapReplicates, 100),
+        finiteNumber(analysis.bootscanSupportCutoff, 0.7),
+        integer(analysis.bootscanRandomSeed, 3),
+        supportsSiscan && analysis.siscanPrimaryEnabled === true ? 1 : 0,
+        supportsSiscan && analysis.siscanSecondaryEnabled !== false ? 1 : 0,
+        integer(analysis.siscanWindowSites, 200),
+        integer(analysis.siscanStepSites, 20),
+        integer(analysis.siscanScanPermutations, 100),
+        integer(analysis.siscanPValuePermutations, 1000),
+        integer(analysis.siscanRandomSeed, 3),
+        analysis.polishBreakpoints === false ? 0 : 1,
+        supportsReferenceGroups && analysis.analysisMode === "query-reference" ? 1 : 0,
+        referenceGroupsPointer,
+        referenceGroups.length,
+        maskPointer,
+        masked.length,
+        disabledPointer,
+        disabled.length,
+      ) !== 1
+    ) {
+      throw engineError("The saved scan settings could not be restored.");
+    }
+  } finally {
+    module._free(maskPointer);
+    module._free(disabledPointer);
+    module._free(referenceGroupsPointer);
+  }
+
+  const inferredEventIds = new Map<number, number>();
+  eventsToRestore.forEach((savedEvent, eventIndex) => {
+    if (!Array.isArray(savedEvent.supportSignalIds)) return;
+    savedEvent.supportSignalIds.forEach((signalId) => {
+      const index = integer(signalId, -1);
+      if (index >= 0) inferredEventIds.set(index, eventIndex);
+    });
+  });
+
+  signalsToRestore.forEach(({ rawSignal, savedIndex }, restoredSignalIndex) => {
+    const signal = requireObject(rawSignal, `Saved signal ${savedIndex + 1} is invalid.`);
+    const savedMethod = requireString(
+      signal.method,
+      `Saved signal ${savedIndex + 1} has no discovery method.`,
+    );
+    if (!["RDP", "MAXCHI", "CHIMAERA", "GENECONV", "3SEQ", "BOOTSCAN", "SISCAN"].includes(savedMethod)) {
+      throw new Error(`Saved signal ${savedIndex + 1} uses an unknown discovery method.`);
+    }
+    if (savedMethod === "3SEQ" && !supportsThreeSeqDiscovery) {
+      throw new Error(`Saved 3SEQ signal ${savedIndex + 1} uses a pre-3SEQ project schema.`);
+    }
+    if (savedMethod === "BOOTSCAN" && !supportsBootscanPrimary) {
+      throw new Error(`Saved BootScan signal ${savedIndex + 1} uses a pre-BootScan project schema.`);
+    }
+    if (savedMethod === "SISCAN" && !supportsSiscan) {
+      throw new Error(`Saved SISCAN signal ${savedIndex + 1} uses a pre-SISCAN project schema.`);
+    }
+    const triplet = requireArray(
+      signal.triplet,
+      `Saved signal ${savedIndex + 1} has no triplet.`,
+    );
+    const similarity = Array.isArray(signal.pairSimilarity) ? signal.pairSimilarity : [];
+    const fragmentContext = Array.isArray(signal.fragmentEventContext)
+      ? signal.fragmentEventContext
+      : [];
+    const explicitEventId = integer(signal.eventId, -1);
+    const restoredEventId = inferredEventIds.get(savedIndex) ??
+      (explicitEventId >= 0 && explicitEventId < eventsToRestore.length ? explicitEventId : -1);
+    if (
+      module!._rdp_restore_signal(
+        context,
+        integer(triplet[0], -1),
+        integer(triplet[1], -1),
+        integer(triplet[2], -1),
+        integer(signal.recombinant, -1),
+        integer(signal.majorParent, -1),
+        integer(signal.minorParent, -1),
+        integer(signal.beginning, -1),
+        integer(signal.ending, -1),
+        signal.wrapsOrigin === true ? 1 : 0,
+        integer(signal.informativeBeginning),
+        integer(signal.informativeEnding),
+        finiteNumber(signal.localPValue, 1),
+        finiteNumber(signal.correctedPValue, 1),
+        integer(signal.correctionTests, integer(analysis.correctionTests)),
+        finiteNumber(similarity[0]),
+        finiteNumber(similarity[1]),
+        finiteNumber(similarity[2]),
+        integer(signal.informativeSites),
+        integer(signal.candidatePair),
+        signal.fragmentAssisted === true ? 1 : 0,
+        integer(fragmentContext[0], -1),
+        integer(fragmentContext[1], -1),
+        integer(fragmentContext[2], -1),
+        reviewStateCode(signal.reviewState),
+        restoredEventId,
+        savedMethod === "MAXCHI"
+          ? 1
+          : savedMethod === "CHIMAERA"
+            ? 2
+            : savedMethod === "GENECONV"
+              ? 3
+              : savedMethod === "3SEQ"
+                ? 4
+                : savedMethod === "BOOTSCAN"
+                  ? 5
+                  : savedMethod === "SISCAN" ? 6 : 0,
+      ) !== 1
+    ) {
+      throw engineError(`Saved signal ${savedIndex + 1} could not be restored.`);
+    }
+    if (savedMethod === "MAXCHI") {
+      const discovery = requireObject(
+        signal.maxChiDiscovery,
+        `Saved MaxChi signal ${savedIndex + 1} has no discovery trace.`,
+      );
+      const tractSide = discovery.tractSide === "left"
+        ? -1
+        : discovery.tractSide === "right" ? 1 : 0;
+      if (
+        module!._rdp_restore_maxchi_discovery(
+          context,
+          restoredSignalIndex,
+          integer(discovery.peakPair, -1),
+          tractSide,
+          integer(discovery.peakAttempt),
+          integer(discovery.peakAlignmentPosition),
+          integer(discovery.variableSites, integer(signal.informativeSites)),
+          integer(discovery.initialHalfWindow),
+          integer(discovery.grownHalfWindow),
+          integer(discovery.criticalDifference),
+          finiteNumber(discovery.maximumChiSquare),
+          finiteNumber(discovery.rawPValue, 1),
+          finiteNumber(discovery.withinTripletPValue, finiteNumber(signal.localPValue, 1)),
+          finiteNumber(discovery.leftFlankChiSquare),
+          finiteNumber(discovery.rightFlankChiSquare),
+          discovery.missingDataWindowFilterApplied === true ? 1 : 0,
+          discovery.linearEdgeWindowFilterApplied === true ? 1 : 0,
+        ) !== 1
+      ) {
+        throw engineError(`Saved MaxChi signal ${savedIndex + 1} could not be restored.`);
+      }
+    }
+    if (savedMethod === "CHIMAERA") {
+      const discovery = requireObject(
+        signal.chimaeraDiscovery,
+        `Saved CHIMAERA signal ${savedIndex + 1} has no discovery trace.`,
+      );
+      const tractSide = discovery.tractSide === "left"
+        ? -1
+        : discovery.tractSide === "right" ? 1 : 0;
+      if (
+        module!._rdp_restore_chimaera_discovery(
+          context,
+          restoredSignalIndex,
+          integer(discovery.targetLocal, -1),
+          tractSide,
+          integer(discovery.peakAttempt),
+          integer(discovery.peakAlignmentPosition),
+          integer(discovery.informationRichSites, integer(signal.informativeSites)),
+          integer(discovery.initialHalfWindow),
+          integer(discovery.grownHalfWindow),
+          integer(discovery.criticalDifference),
+          finiteNumber(discovery.maximumChiSquare),
+          finiteNumber(discovery.rawPValue, 1),
+          finiteNumber(discovery.withinTripletPValue, finiteNumber(signal.localPValue, 1)),
+          finiteNumber(discovery.leftFlankChiSquare),
+          finiteNumber(discovery.rightFlankChiSquare),
+          finiteNumber(discovery.insideParentOneMatchRate),
+          finiteNumber(discovery.outsideParentOneMatchRate),
+          discovery.missingDataWindowFilterApplied === true ? 1 : 0,
+          discovery.linearEdgeWindowFilterApplied === true ? 1 : 0,
+        ) !== 1
+      ) {
+        throw engineError(`Saved CHIMAERA signal ${savedIndex + 1} could not be restored.`);
+      }
+    }
+    if (savedMethod === "GENECONV") {
+      const discovery = requireObject(
+        signal.geneconvDiscovery,
+        `Saved GENECONV signal ${savedIndex + 1} has no discovery trace.`,
+      );
+      if (
+        module!._rdp_restore_geneconv_discovery(
+          context,
+          restoredSignalIndex,
+          integer(discovery.track, -1),
+          integer(discovery.polymorphicSites, integer(signal.informativeSites)),
+          integer(discovery.positiveSites),
+          integer(discovery.discordantSites),
+          integer(discovery.mismatchPenalty),
+          integer(discovery.fragmentScore),
+          integer(discovery.criticalScore),
+          finiteNumber(discovery.lambda),
+          finiteNumber(discovery.karlinAltschulK),
+          finiteNumber(discovery.rawPValue, finiteNumber(signal.localPValue, 1)),
+        ) !== 1
+      ) {
+        throw engineError(`Saved GENECONV signal ${savedIndex + 1} could not be restored.`);
+      }
+    }
+    if (savedMethod === "3SEQ") {
+      const discovery = requireObject(
+        signal.threeSeqDiscovery,
+        `Saved 3SEQ signal ${savedIndex + 1} has no discovery trace.`,
+      );
+      if (discovery.walkDirection !== "ascent" && discovery.walkDirection !== "descent") {
+        throw new Error(`Saved 3SEQ signal ${savedIndex + 1} has an invalid walk direction.`);
+      }
+      if (discovery.missingDataSplitApplied === true && !supportsThreeSeqSplit) {
+        throw new Error(
+          `Saved 3SEQ signal ${savedIndex + 1} claims post-erasure split evidence in a pre-v15 project.`,
+        );
+      }
+      if (
+        module!._rdp_restore_threeseq_discovery(
+          context,
+          restoredSignalIndex,
+          integer(discovery.targetLocal, -1),
+          discovery.walkDirection === "ascent" ? 1 : -1,
+          integer(discovery.informationRichSites, integer(signal.informativeSites)),
+          integer(discovery.parentOneMatches),
+          integer(discovery.parentTwoMatches),
+          integer(discovery.probabilityExcursion, integer(discovery.maximumExcursion)),
+          integer(discovery.maximumExcursion),
+          finiteNumber(discovery.rawPValue, finiteNumber(signal.localPValue, 1)),
+          discovery.exactProbability === true ? 1 : 0,
+          discovery.siegmundFallback === true ? 1 : 0,
+          discovery.missingDataSplitApplied === true ? 1 : 0,
+        ) !== 1
+      ) {
+        throw engineError(`Saved 3SEQ signal ${savedIndex + 1} could not be restored.`);
+      }
+    }
+    if (savedMethod === "BOOTSCAN") {
+      const discovery = requireObject(
+        signal.bootscanDiscovery,
+        `Saved BootScan signal ${savedIndex + 1} has no discovery trace.`,
+      );
+      if (
+        module!._rdp_restore_bootscan_discovery(
+          context,
+          restoredSignalIndex,
+          integer(discovery.supportedPair, -1),
+          integer(discovery.windowsScored),
+          integer(discovery.usableWindows),
+          integer(discovery.informativeSites, integer(signal.informativeSites)),
+          integer(discovery.tractInformativeSites),
+          integer(discovery.tractPairMatches),
+          integer(discovery.outsidePairMatches),
+          finiteNumber(discovery.maximumPairSupport),
+          finiteNumber(discovery.meanPairSupport),
+          finiteNumber(discovery.bootstrapPValue, 1),
+          finiteNumber(discovery.rawPValue, finiteNumber(signal.localPValue, 1)),
+          discovery.erasedWindowFilterApplied === true ? 1 : 0,
+        ) !== 1
+      ) {
+        throw engineError(`Saved BootScan signal ${savedIndex + 1} could not be restored.`);
+      }
+    }
+    if (savedMethod === "SISCAN") {
+      const discovery = requireObject(
+        signal.siscanDiscovery,
+        `Saved SISCAN signal ${savedIndex + 1} has no discovery trace.`,
+      );
+      const scoreFamily = discovery.selectedScoreFamily === "partition"
+        ? 1
+        : discovery.selectedScoreFamily === "summed" ? 2 : 0;
+      if (
+        module!._rdp_restore_siscan_discovery(
+          context,
+          restoredSignalIndex,
+          integer(discovery.globalPair, -1),
+          integer(discovery.candidatePair, integer(signal.candidatePair, -1)),
+          integer(discovery.outlierSequence, -1),
+          integer(discovery.windowsInRegion),
+          integer(discovery.informativeSites, integer(signal.informativeSites)),
+          finiteNumber(discovery.permutationDraws),
+          integer(discovery.selectedScore),
+          scoreFamily,
+          finiteNumber(discovery.maximumZ),
+          finiteNumber(discovery.normalTailPValue, 1),
+          finiteNumber(discovery.regionLengthAdjustedPValue, 1),
+          finiteNumber(discovery.windowAdjustedPValue, finiteNumber(signal.localPValue, 1)),
+        ) !== 1
+      ) {
+        throw engineError(`Saved SISCAN signal ${savedIndex + 1} could not be restored.`);
+      }
+    }
+  });
+  const savedCycleTermination = pending < 0 && typeof analysis.cycleTermination === "string"
+    ? analysis.cycleTermination
+    : "restored-project";
+  const cycleTerminationBytes = encoder.encode(savedCycleTermination);
+  const cycleTerminationPointer = copyBytes(cycleTerminationBytes);
+  try {
+    if (
+      module._rdp_restore_scan_finish(
+        context,
+        integer(analysis.correctionTests),
+        pending < 0 ? finiteNumber(analysis.cumulativeTriplets) : 0,
+        pending < 0
+          ? integer(analysis.scanRounds, Math.max(1, eventsToRestore.length + 1))
+          : Math.max(1, eventsToRestore.length + 1),
+        pending < 0 ? finiteNumber(analysis.maxChiProfilesScanned) : 0,
+        pending < 0 ? finiteNumber(analysis.maxChiPeakAttempts) : 0,
+        pending < 0 ? finiteNumber(analysis.maxChiCandidatesFound) : 0,
+        pending < 0 ? finiteNumber(analysis.maxChiPeakLimitTriplets) : 0,
+        pending < 0 ? finiteNumber(analysis.chimaeraProfilesScanned) : 0,
+        pending < 0 ? finiteNumber(analysis.chimaeraPeakAttempts) : 0,
+        pending < 0 ? finiteNumber(analysis.chimaeraCandidatesFound) : 0,
+        pending < 0 ? finiteNumber(analysis.chimaeraPeakLimitTargets) : 0,
+        pending < 0 ? finiteNumber(analysis.geneconvFragmentsScored) : 0,
+        pending < 0 ? finiteNumber(analysis.geneconvQualifiedFragments) : 0,
+        pending < 0 ? finiteNumber(analysis.geneconvCandidatesFound) : 0,
+        pending < 0 ? finiteNumber(analysis.geneconvOverlapRejections) : 0,
+        pending < 0 ? finiteNumber(analysis.geneconvNumericalFallbackTracks) : 0,
+        pending < 0 && supportsThreeSeqDiscovery
+          ? finiteNumber(analysis.threeSeqProfilesScanned) : 0,
+        pending < 0 && supportsThreeSeqDiscovery
+          ? finiteNumber(analysis.threeSeqExactEvaluations) : 0,
+        pending < 0 && supportsThreeSeqDiscovery
+          ? finiteNumber(analysis.threeSeqApproximateEvaluations) : 0,
+        pending < 0 && supportsThreeSeqDiscovery
+          ? finiteNumber(analysis.threeSeqCandidatesFound) : 0,
+        pending < 0 && supportsBootscanPrimary
+          ? finiteNumber(analysis.bootscanProfilesScanned) : 0,
+        pending < 0 && supportsBootscanPrimary
+          ? finiteNumber(analysis.bootscanCandidateRegionsScored) : 0,
+        pending < 0 && supportsBootscanPrimary
+          ? finiteNumber(analysis.bootscanCandidatesFound) : 0,
+        pending < 0 && supportsBootscanPrimary
+          ? finiteNumber(analysis.bootscanPairProfilesRequested) : 0,
+        pending < 0 && supportsBootscanPrimary
+          ? finiteNumber(analysis.bootscanPairProfileCacheHits) : 0,
+        pending < 0 && supportsBootscanPrimary
+          ? finiteNumber(analysis.bootscanPairProfileCacheMisses) : 0,
+        pending < 0 && supportsBootscanPrimary
+          ? finiteNumber(analysis.bootscanPairProfileCacheEvictions) : 0,
+        pending < 0 && supportsBootscanPrimary
+          ? finiteNumber(analysis.bootscanPairProfileCachePeakBytes) : 0,
+        pending < 0 && supportsSiscan
+          ? finiteNumber(analysis.siscanProfilesScanned) : 0,
+        pending < 0 && supportsSiscan
+          ? finiteNumber(analysis.siscanWindowsScored) : 0,
+        pending < 0 && supportsSiscan
+          ? finiteNumber(analysis.siscanCandidateRegionsScored) : 0,
+        pending < 0 && supportsSiscan
+          ? finiteNumber(analysis.siscanCandidatesFound) : 0,
+        pending < 0 && supportsSiscan
+          ? finiteNumber(analysis.siscanPermutationDraws) : 0,
+        pending < 0 && supportsSiscan
+          ? finiteNumber(analysis.siscanContextBuilds) : 0,
+        pending < 0 && supportsSiscan
+          ? finiteNumber(analysis.siscanContextPairComparisons) : 0,
+        pending < 0 && supportsSiscan
+          ? finiteNumber(analysis.siscanContextTreeMerges) : 0,
+        pending < 0 && supportsSiscan
+          ? finiteNumber(analysis.siscanRandomValuesGenerated) : 0,
+        cycleTerminationPointer,
+        cycleTerminationBytes.byteLength,
+      ) !== 1
+    ) {
+      throw engineError("The saved primary analysis could not be restored.");
+    }
+  } finally {
+    module._free(cycleTerminationPointer);
+  }
+
+  eventsToRestore.forEach((savedEvent, index) => {
+    const savedAnchorSignalId = integer(savedEvent.anchorSignalId, -1);
+    const restoredAnchorSignalId = signalIdMap.get(savedAnchorSignalId);
+    if (restoredAnchorSignalId === undefined) {
+      throw new Error(`Saved event ${index + 1} has no restorable anchor signal.`);
+    }
+    const group = Array.isArray(savedEvent.coRecombinantSequenceIndices)
+      ? savedEvent.coRecombinantSequenceIndices.map((value) => integer(value, -1))
+      : [];
+    const groupPointer = copyUint32(group);
+    try {
+      if (
+        module!._rdp_restore_event_state(
+          context,
+          index,
+          restoredAnchorSignalId,
+          integer(savedEvent.recombinant, -1),
+          integer(savedEvent.majorParent, -1),
+          integer(savedEvent.minorParent, -1),
+          integer(savedEvent.beginning, -1),
+          integer(savedEvent.ending, -1),
+          integer(savedEvent.detectionRound, index + 1),
+          savedEvent.tractErasedForDetection === false ? 0 : 1,
+          reviewStateCode(savedEvent.reviewState),
+          savedEvent.manualAdjusted === true ? 1 : 0,
+          groupPointer,
+          group.length,
+          savedEvent.groupManualAdjusted === true ? 1 : 0,
+        ) !== 1
+      ) {
+        throw engineError(`Saved event ${index + 1} could not be restored.`);
+      }
+    } finally {
+      module!._free(groupPointer);
+    }
+  });
+  if (
+    pending >= 0 &&
+    module._rdp_restore_reconciliation_required_after(context, pending) !== 1
+  ) {
+    throw engineError("The saved downstream reconciliation marker could not be restored.");
+  }
+  const results = decorateScanResults(parseJson<ScanResults>(
+    module._rdp_get_results_json(context),
+    "The restored analysis was not returned.",
+  ));
+  return { dataset: restoredDataset, results, sourceFilename: datasetName };
+}
+
+function exportProject(): string {
+  if (!module || !context) throw new Error("The engine has not been initialised.");
+  if (sourceFaithfulCore) {
+    if (!dataset || !sourceFaithfulResults) throw new Error("Run an analysis before exporting a project.");
+    const sequences = dataset.sequences.map((sequence) => ({ name: sequence.name, sequence: "" }));
+    const fastaRecords = sourceFaithfulFasta.split(/\r?\n(?=>)/);
+    sequences.forEach((record, index) => {
+      const block = fastaRecords[index] ?? "";
+      record.sequence = block.replace(/^>[^\r\n]*\r?\n/, "").replace(/\r?\n/g, "");
+    });
+    return JSON.stringify({ schema: "org.rdp-web.project/v1alpha20", engineVersion: sourceFaithfulResults.engineVersion, sourceFilename: datasetName, dataset: { format: dataset.format, alignmentLength: dataset.alignmentLength, sequences }, analysis: sourceFaithfulResults }, null, 2);
+  }
+  const raw = value(module._rdp_export_project_json(context));
+  if (!raw) throw engineError("The project snapshot could not be exported.");
+  const project = JSON.parse(raw) as Record<string, unknown>;
+  project.sourceFilename = datasetName;
+  if (project.analysis && typeof project.analysis === "object" &&
+      !Array.isArray(project.analysis)) {
+    const analysis = project.analysis as Record<string, unknown>;
+    analysis.timing = lastScanTiming;
+    analysis.execution = scanExecution();
+  }
+  return JSON.stringify(project, null, 2);
+}
+
+function emitProgress(force = false): ScanProgress | undefined {
+  if (!module || !context) throw new Error("The engine has not been initialised.");
+  const now = performance.now();
+  if (!force && now - lastProgressEmission < PROGRESS_EMISSION_INTERVAL_MS) {
+    return undefined;
+  }
+  const progress = parseJson<ScanProgress>(
+    module._rdp_get_progress_json(context),
+    "Scan progress was not returned.",
+  );
+  progress.timing = activeScanTimer?.snapshot() ?? lastScanTiming;
+  progress.execution = scanExecution();
+  scope.postMessage({ type: "progress", progress });
+  // Measure from the completed post, so JSON construction time cannot make
+  // two visible updates land less than 100 ms apart.
+  lastProgressEmission = performance.now();
+  return progress;
+}
+
+function nextScanBatchBudget(current: number, elapsedMilliseconds: number): number {
+  if (!(elapsedMilliseconds > 0)) return Math.min(MAXIMUM_SCAN_BATCH, current * 2);
+  const ratio = Math.max(0.25, Math.min(4, TARGET_SCAN_SLICE_MS / elapsedMilliseconds));
+  return Math.max(
+    MINIMUM_SCAN_BATCH,
+    Math.min(MAXIMUM_SCAN_BATCH, Math.round(current * ratio)),
+  );
+}
+
+async function yieldToWorkerQueue(): Promise<void> {
+  const scheduler = (globalThis as typeof globalThis & {
+    scheduler?: { yield?: () => Promise<void> };
+  }).scheduler;
+  if (scheduler?.yield) {
+    await scheduler.yield();
+    return;
+  }
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
+async function runScan(request: Extract<WorkerRequest, { type: "scan" }>): Promise<unknown> {
+  if (!module || !context || !dataset) throw new Error("Load an alignment before starting a scan.");
+  if (scanActive) throw new Error("A scan is already running.");
+
+  activeScanTimer = new ScanTimer();
+  lastScanTiming = null;
+  requestedThreads = Math.max(
+    1,
+    Math.min(maximumThreads, integer(request.options.cpuThreads, recommendedThreads)),
+  );
+  scanMethodThreadCapacity = heavyMethodThreadCapacity(request.options);
+  activeThreads = module._rdp_set_worker_threads(
+    context,
+    Math.min(requestedThreads, scanMethodThreadCapacity),
+  ) || 1;
+  lastScanExecution = {
+    mode: threaded && activeThreads > 1 ? "wasm-pthreads" : "single-worker",
+    requestedThreads,
+    activeThreads,
+    hardwareConcurrency,
+  };
+
+  const mask = new Uint8Array(dataset.sequenceCount);
+  request.options.maskedSequenceIndices.forEach((index) => {
+    if (index >= 0 && index < mask.length) mask[index] = 1;
+  });
+  const disabled = new Uint8Array(dataset.sequenceCount);
+  request.options.disabledSequenceIndices.forEach((index) => {
+    if (index >= 0 && index < disabled.length) {
+      disabled[index] = 1;
+      mask[index] = 0;
+    }
+  });
+  const referenceGroups = new Array<number>(dataset.sequenceCount).fill(0);
+  request.options.referenceGroupIndices.slice(0, referenceGroups.length).forEach((value, index) => {
+    referenceGroups[index] = Math.max(0, Math.min(0xffff_ffff, integer(value)));
+  });
+  const maskPointer = copyBytes(mask);
+  const disabledPointer = copyBytes(disabled);
+  const referenceGroupsPointer = copyUint32(referenceGroups);
+  try {
+    const correction = request.options.correction === "bonferroni" ? 0 : 1;
+    const started = module._rdp_scan_begin(
+      context,
+      request.options.circular ? 1 : 0,
+      correction,
+      request.options.pValueCutoff,
+      request.options.windowSites,
+      request.options.maxChiEnabled ? 1 : 0,
+      request.options.maxChiWindowSites,
+      request.options.chimaeraEnabled ? 1 : 0,
+      request.options.chimaeraWindowSites,
+      request.options.geneconvEnabled ? 1 : 0,
+      request.options.geneconvMismatchScale,
+      request.options.geneconvMaxOverlaps,
+      request.options.threeSeqEnabled ? 1 : 0,
+      request.options.bootscanPrimaryEnabled ? 1 : 0,
+      request.options.bootscanSecondaryEnabled ? 1 : 0,
+      request.options.bootscanWindowSites,
+      request.options.bootscanStepSites,
+      request.options.bootscanBootstrapReplicates,
+      request.options.bootscanSupportCutoff,
+      request.options.bootscanRandomSeed,
+      request.options.siscanPrimaryEnabled ? 1 : 0,
+      request.options.siscanSecondaryEnabled ? 1 : 0,
+      request.options.siscanWindowSites,
+      request.options.siscanStepSites,
+      request.options.siscanScanPermutations,
+      request.options.siscanPValuePermutations,
+      request.options.siscanRandomSeed,
+      request.options.polishBreakpoints ? 1 : 0,
+      request.options.analysisMode === "query-reference" ? 1 : 0,
+      referenceGroupsPointer,
+      referenceGroups.length,
+      maskPointer,
+      mask.length,
+      disabledPointer,
+      disabled.length,
+    );
+    if (started !== 1) throw engineError("The recombination scan could not be started.");
+    activeScanTimer.beginPrimary();
+  } finally {
+    module._free(maskPointer);
+    module._free(disabledPointer);
+    module._free(referenceGroupsPointer);
+  }
+
+  scanActive = true;
+  lastProgressEmission = Number.NEGATIVE_INFINITY;
+  emitProgress(true);
+  let tripletBudget = INITIAL_SCAN_BATCH;
+  try {
+    for (;;) {
+      const batchStarted = performance.now();
+      const status = module._rdp_scan_batch(context, tripletBudget);
+      const batchElapsed = performance.now() - batchStarted;
+      if (status === 4) activeScanTimer?.completeRound();
+      emitProgress();
+      if (status === 1) break;
+      if (status === 3) {
+        const terminalDiscovery = parseJson<ScanProgress>(
+          module._rdp_get_progress_json(context),
+          "Terminal discovery progress was not returned.",
+        );
+        activeScanTimer?.beginReconciliation(
+          terminalDiscovery.cycleTermination !== "user-stopped" &&
+            terminalDiscovery.processedTriplets === terminalDiscovery.totalTriplets,
+        );
+        emitProgress(true);
+        await yieldToWorkerQueue();
+        if (module._rdp_reconcile(context) !== 1) {
+          throw engineError("The discovery signals could not be reconciled into event hypotheses.");
+        }
+        break;
+      }
+      if (status === 2) throw new Error("The scan was cancelled.");
+      if (status < 0) throw engineError("The scan failed.");
+      // Status zero means the complete budget was consumed. Round-boundary
+      // status four can return early, so it must not distort the throughput
+      // estimate used for the next full slice.
+      if (status === 0) {
+        tripletBudget = nextScanBatchBudget(tripletBudget, batchElapsed);
+      }
+      await yieldToWorkerQueue();
+    }
+    const rawResults = parseJson<SourceFaithfulResult | ScanResults>(
+      module._rdp_get_results_json(context),
+      "The scan returned no results.",
+    );
+    if (activeScanTimer) {
+      // Include native result serialization and JSON parsing in the measured
+      // run, rather than stopping the clock as soon as reconciliation returns.
+      lastScanTiming = activeScanTimer.finish();
+      activeScanTimer = null;
+    }
+    emitProgress(true);
+    const results = sourceFaithfulCore && (rawResults as SourceFaithfulResult).sourceFaithfulCore
+      ? makeSourceFaithfulResults(rawResults as SourceFaithfulResult, request.options, dataset)
+      : rawResults as ScanResults;
+    sourceFaithfulResults = results;
+    return decorateScanResults(results);
+  } finally {
+    if (activeScanTimer) {
+      lastScanTiming = activeScanTimer.finish();
+      activeScanTimer = null;
+    }
+    scanActive = false;
+  }
+}
+
+async function reidentifyLaterEvents(eventId: number, cpuThreads: number): Promise<ScanResults> {
+  if (!module || !context) throw new Error("The engine has not been initialised.");
+  if (sourceFaithfulCore && sourceFaithfulResults) return sourceFaithfulResults;
+  if (scanActive) throw new Error("A scan is already running.");
+  activeScanTimer = new ScanTimer();
+  lastScanTiming = null;
+  requestedThreads = Math.max(1, Math.min(maximumThreads, integer(cpuThreads, recommendedThreads)));
+  activeThreads = module._rdp_set_worker_threads(
+    context,
+    Math.min(requestedThreads, scanMethodThreadCapacity),
+  ) || 1;
+  lastScanExecution = {
+    mode: threaded && activeThreads > 1 ? "wasm-pthreads" : "single-worker",
+    requestedThreads,
+    activeThreads,
+    hardwareConcurrency,
+  };
+  if (module._rdp_reconcile_after(context, eventId) !== 1) {
+    lastScanTiming = activeScanTimer.finish();
+    activeScanTimer = null;
+    throw engineError("Later events could not be prepared for re-identification.");
+  }
+  activeScanTimer.beginPrimary();
+  scanActive = true;
+  lastProgressEmission = Number.NEGATIVE_INFINITY;
+  emitProgress(true);
+  let tripletBudget = INITIAL_SCAN_BATCH;
+  try {
+    for (;;) {
+      const batchStarted = performance.now();
+      const status = module._rdp_scan_batch(context, tripletBudget);
+      const batchElapsed = performance.now() - batchStarted;
+      if (status === 4) activeScanTimer?.completeRound();
+      emitProgress();
+      if (status === 3) {
+        activeScanTimer?.beginReconciliation(true);
+        emitProgress(true);
+        await yieldToWorkerQueue();
+        if (module._rdp_reconcile(context) !== 1) {
+          throw engineError("The rebuilt signals could not be reconciled into event hypotheses.");
+        }
+        break;
+      }
+      if (status === 2) throw new Error("Re-identification was cancelled.");
+      if (status < 0) throw engineError("Re-identification failed.");
+      if (status === 0) {
+        tripletBudget = nextScanBatchBudget(tripletBudget, batchElapsed);
+      }
+      await yieldToWorkerQueue();
+    }
+    const results = parseJson<ScanResults>(
+      module._rdp_get_results_json(context),
+      "Re-identified event results were not returned.",
+    );
+    if (activeScanTimer) {
+      lastScanTiming = activeScanTimer.finish();
+      activeScanTimer = null;
+    }
+    emitProgress(true);
+    return decorateScanResults(results);
+  } finally {
+    if (activeScanTimer) {
+      lastScanTiming = activeScanTimer.finish();
+      activeScanTimer = null;
+    }
+    scanActive = false;
+  }
+}
+
+scope.addEventListener("message", async (event: MessageEvent<WorkerRequest>) => {
+  const request = event.data;
+  try {
+    let result: unknown;
+    switch (request.type) {
+      case "init":
+        result = await initialise(request.wasmBaseUrl, request.assetVersion);
+        break;
+      case "load":
+        result = loadAlignment(request.name, request.bytes);
+        break;
+      case "import-project":
+        result = restoreProject(request.name, request.bytes);
+        break;
+      case "scan":
+        result = await runScan(request);
+        break;
+      case "cancel":
+        if (module && context) module._rdp_cancel(context);
+        result = undefined;
+        break;
+      case "plot":
+        if (!module || !context) throw new Error("The engine has not been initialised.");
+        result = parseJson(
+          module._rdp_get_signal_plot_json(context, request.signalId),
+          "Plot data was not returned.",
+        );
+        break;
+      case "event-alignment":
+        if (!module || !context) throw new Error("The engine has not been initialised.");
+        result = parseJson(
+          module._rdp_get_event_alignment_json(
+            context,
+            request.eventId,
+            request.flankSites,
+            request.rowLimit,
+          ),
+          "Breakpoint alignment data was not returned.",
+        );
+        break;
+      case "event-trees":
+        if (!module || !context) throw new Error("The engine has not been initialised.");
+        result = parseJson(
+          module._rdp_get_event_trees_json(context, request.eventId),
+          "Regional tree data was not returned.",
+        );
+        break;
+      case "event-phylpro":
+        if (!module || !context) throw new Error("The engine has not been initialised.");
+        result = parseJson(
+          module._rdp_get_event_phylpro_json(
+            context,
+            request.eventId,
+            request.windowSites,
+            request.gapMode === "strip-any-missing-column" ? 1 : 0,
+            request.includeSelf ? 1 : 0,
+          ),
+          "PHYLPRO review data were not returned.",
+        );
+        break;
+      case "set-review-state": {
+        if (!module || !context) throw new Error("The engine has not been initialised.");
+        const state = request.state === "accepted" ? 1 : request.state === "rejected" ? 2 : 0;
+        if (module._rdp_set_review_state(context, request.signalId, state) !== 1) {
+          throw engineError("The review state could not be changed.");
+        }
+        result = undefined;
+        break;
+      }
+      case "set-event-review-state": {
+        if (!module || !context) throw new Error("The engine has not been initialised.");
+        if (
+          module._rdp_set_event_review_state(
+            context,
+            request.eventId,
+            reviewStateCode(request.state),
+          ) !== 1
+        ) {
+          throw engineError("The event review state could not be changed.");
+        }
+        if (sourceFaithfulCore && sourceFaithfulResults) {
+          sourceFaithfulResults = {
+            ...sourceFaithfulResults,
+            events: sourceFaithfulResults.events.map((event) => event.id === request.eventId ? { ...event, reviewState: request.state } : event),
+          };
+          result = sourceFaithfulResults;
+        } else {
+          result = decorateScanResults(parseJson<ScanResults>(
+            module._rdp_get_results_json(context),
+            "Updated event results were not returned.",
+          ));
+        }
+        break;
+      }
+      case "update-event":
+        if (!module || !context) throw new Error("The engine has not been initialised.");
+        if (
+          module._rdp_update_event(
+            context,
+            request.eventId,
+            request.edit.recombinant,
+            request.edit.majorParent,
+            request.edit.minorParent,
+            request.edit.beginning,
+            request.edit.ending,
+          ) !== 1
+        ) {
+          throw engineError("The event correction could not be saved.");
+        }
+        if (sourceFaithfulCore && sourceFaithfulResults) {
+          sourceFaithfulResults = {
+            ...sourceFaithfulResults,
+            events: sourceFaithfulResults.events.map((event) => event.id === request.eventId ? {
+              ...event,
+              recombinant: request.edit.recombinant,
+              majorParent: request.edit.majorParent,
+              minorParent: request.edit.minorParent,
+              recombinantName: dataset?.sequences[request.edit.recombinant]?.name ?? event.recombinantName,
+              majorParentName: dataset?.sequences[request.edit.majorParent]?.name ?? event.majorParentName,
+              minorParentName: dataset?.sequences[request.edit.minorParent]?.name ?? event.minorParentName,
+              beginning: request.edit.beginning,
+              ending: request.edit.ending,
+              manualAdjusted: true,
+            } : event),
+          };
+          result = sourceFaithfulResults;
+        } else {
+          result = decorateScanResults(parseJson<ScanResults>(
+            module._rdp_get_results_json(context),
+            "Updated event results were not returned.",
+          ));
+        }
+        break;
+      case "update-event-group": {
+        if (!module || !context) throw new Error("The engine has not been initialised.");
+        const sequenceIndices = [...new Set(request.sequenceIndices.map((value) => integer(value, -1)))]
+          .sort((left, right) => left - right);
+        const pointer = copyUint32(sequenceIndices);
+        try {
+          if (
+            module._rdp_update_event_group(
+              context,
+              request.eventId,
+              pointer,
+              sequenceIndices.length,
+              request.manualOverride ? 1 : 0,
+            ) !== 1
+          ) {
+            throw engineError("The co-recombinant group correction could not be saved.");
+          }
+        } finally {
+          module._free(pointer);
+        }
+        if (sourceFaithfulCore && sourceFaithfulResults) {
+          sourceFaithfulResults = {
+            ...sourceFaithfulResults,
+            events: sourceFaithfulResults.events.map((event) => event.id === request.eventId ? {
+              ...event,
+              coRecombinantSequenceIndices: sequenceIndices,
+              coRecombinantSequenceNames: sequenceIndices.map((index) => dataset?.sequences[index]?.name ?? `Sequence ${index + 1}`),
+              groupManualAdjusted: request.manualOverride,
+            } : event),
+          };
+          result = sourceFaithfulResults;
+        } else {
+          result = decorateScanResults(parseJson<ScanResults>(
+            module._rdp_get_results_json(context),
+            "Updated event results were not returned.",
+          ));
+        }
+        break;
+      }
+      case "reconcile-after":
+        result = await reidentifyLaterEvents(request.eventId, request.cpuThreads);
+        break;
+      case "export-csv":
+        if (!module || !context) throw new Error("The engine has not been initialised.");
+        result = value(module._rdp_export_csv(context));
+        break;
+      case "export-enabled-sequences": {
+        result = exportCuratedSequences(
+          request.maskedSequenceIndices,
+          request.disabledSequenceIndices,
+          true,
+        );
+        break;
+      }
+      case "export-masked-or-disabled-sequences": {
+        result = exportCuratedSequences(
+          request.maskedSequenceIndices,
+          request.disabledSequenceIndices,
+          false,
+        );
+        break;
+      }
+      case "export-recombinant-sequences-removed": {
+        if (!module || !context) throw new Error("The engine has not been initialised.");
+        const fasta = value(module._rdp_export_recombinant_sequences_removed_fasta(context));
+        if (!fasta) throw engineError("The final sequence-removed alignment is not ready.");
+        result = fasta;
+        break;
+      }
+      case "export-recombinant-columns-removed": {
+        if (!module || !context) throw new Error("The engine has not been initialised.");
+        const fasta = value(module._rdp_export_recombinant_columns_removed_fasta(context));
+        if (!fasta) throw engineError("The final column-removed alignment is not ready.");
+        result = fasta;
+        break;
+      }
+      case "export-recombination-free": {
+        if (!module || !context) throw new Error("The engine has not been initialised.");
+        const fasta = value(module._rdp_export_recombination_free_fasta(context));
+        if (!fasta) throw engineError("The final tract-masked alignment is not ready.");
+        result = fasta;
+        break;
+      }
+      case "export-fragmented": {
+        if (!module || !context) throw new Error("The engine has not been initialised.");
+        const fasta = value(module._rdp_export_fragmented_fasta(context));
+        if (!fasta) throw engineError("The final mosaic-fragment alignment is not ready.");
+        result = fasta;
+        break;
+      }
+      case "export-project":
+        result = exportProject();
+        break;
+      default:
+        throw new Error("Unknown worker request.");
+    }
+    respond({ id: request.id, ok: true, value: result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    respond({ id: request.id, ok: false, error: message });
+  }
+});
