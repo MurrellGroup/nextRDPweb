@@ -1,0 +1,11 @@
+node_modules/
+dist/
+public/wasm/*.wasm
+public/wasm/*.mjs
+public/wasm/*.worker.js
+public/wasm/*.map
+wasm/build-*/
+wasm/.rdp-*
+cc??????*
+*.log
+.DS_Store

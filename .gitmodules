@@ -1,0 +1,3 @@
+[submodule "vendor/nextRDP-core"]
+	path = vendor/nextRDP-core
+	url = git@github.com:MurrellGroup/nextRDP-core.git
