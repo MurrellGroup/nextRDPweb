@@ -29,7 +29,7 @@ const methods = [
   {
     name: "GENECONV",
     description: "Six signed fragment tracks with source mismatch scoring, Karlin–Altschul tails, and overlap filtering.",
-    state: "not-in-this-build",
+    state: "ready",
   },
   {
     name: "BOOTSCAN",
@@ -39,12 +39,12 @@ const methods = [
   {
     name: "MAXCHI",
     description: "Raw χ² peak ordering, tract-side matching, peak destruction/retry, and cyclic discovery.",
-    state: "not-in-this-build",
+    state: "ready",
   },
   {
     name: "CHIMAERA",
     description: "Target-rotated information-rich binary χ² profiles with source-shaped tract inference.",
-    state: "not-in-this-build",
+    state: "ready",
   },
   {
     name: "SISCAN",
@@ -54,7 +54,7 @@ const methods = [
   {
     name: "3SEQ",
     description: "Target-rotated hypergeometric random walks with exact tails and source circular tract inference.",
-    state: "not-in-this-build",
+    state: "ready",
   },
 ] as const;
 
@@ -141,7 +141,6 @@ export function SettingsStep({
     ));
   const set = <Key extends keyof ScanOptions>(key: Key, value: ScanOptions[Key]) => {
     const unsupported = new Set<keyof ScanOptions>([
-      "maxChiEnabled", "chimaeraEnabled", "geneconvEnabled", "threeSeqEnabled",
       "bootscanPrimaryEnabled", "bootscanSecondaryEnabled", "siscanPrimaryEnabled", "siscanSecondaryEnabled",
     ]);
     onChange({ ...options, [key]: unsupported.has(key) ? false as ScanOptions[Key] : value });
@@ -257,7 +256,7 @@ export function SettingsStep({
                 <span className="eyebrow">Primary methods</span>
                 <h2>Signal detection panel</h2>
               </div>
-              <span className="fidelity-badge">RDP only · source-faithful core</span>
+              <span className="fidelity-badge">RDP family · source-faithful core</span>
             </div>
             <div className="method-grid">
               {methods.map((method) => (
@@ -320,9 +319,9 @@ export function SettingsStep({
             <div className="inline-note compute-note">
               <Info size={17} />
               <p>
-                This browser build runs the source-faithful RDP routine only. The other method
-                switches are retained as disabled compatibility labels until their source-faithful
-                ports are connected to the core.
+                RDP, GENECONV, MaxChi, CHIMAERA, and 3SEQ are connected to the source-faithful
+                core scheduler. BootScan and SISCAN remain unavailable until their kernels are
+                ported.
               </p>
             </div>
             <div className="card-heading">
@@ -383,7 +382,6 @@ export function SettingsStep({
               <input
                 type="checkbox"
                 checked={options.geneconvEnabled}
-                disabled
                 onChange={(event) => set("geneconvEnabled", event.target.checked)}
               />
               <span>
@@ -632,7 +630,6 @@ export function SettingsStep({
               <input
                 type="checkbox"
                 checked={options.threeSeqEnabled}
-                disabled
                 onChange={(event) => set("threeSeqEnabled", event.target.checked)}
               />
               <span>
@@ -648,7 +645,6 @@ export function SettingsStep({
               <input
                 type="checkbox"
                 checked={options.maxChiEnabled}
-                disabled
                 onChange={(event) => set("maxChiEnabled", event.target.checked)}
               />
               <span>
