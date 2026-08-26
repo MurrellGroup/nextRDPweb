@@ -94,7 +94,9 @@ export function SignalPlot({ plot, signal, loading }: SignalPlotProps) {
                   ? "BootScan strict closest-pair bootstrap support"
                 : signal.method === "SISCAN"
                   ? "SISCAN vertical-permutation sister-pair Z scores"
-                : plot.metric === "chi-square" ? "MaxChi χ² profile" : "Sliding-window pairwise identity"} for signal {signal.id + 1}
+                  : plot.metric === "chi-square" ? "MaxChi χ² profile"
+                    : sourceRdpAxis ? "RDP informative-site homology profile"
+                    : "Sliding-window pairwise identity"} for signal {signal.id + 1}
         </title>
         <desc>
           {signal.method === "CHIMAERA"
@@ -109,7 +111,9 @@ export function SignalPlot({ plot, signal, loading }: SignalPlotProps) {
                   ? "Three pair-associated SISCAN Z-score curves from the supplied gap-stripped variable-pattern categories and seeded vertical permutations. The highlighted region is the inferred sister-pair switch."
                 : plot.metric === "chi-square"
                   ? "Three pairwise maximum chi-square traces across variable sites. The highlighted region is the matched recombinant tract."
-                  : "Pairwise identity across information-rich sites for the three sequences used to detect this signal. The highlighted region is bounded by the inferred breakpoints."}
+                  : sourceRdpAxis
+                    ? "Source RDP XOverHomologyP agreement counts at informative XDiffPos sites. The highlighted region is bounded by the inferred breakpoints."
+                    : "Pairwise identity across information-rich sites for the three sequences used to detect this signal. The highlighted region is bounded by the inferred breakpoints."}
         </desc>
         {[0, 0.25, 0.5, 0.75, 1].map((tick) => (
           <g key={tick}>
