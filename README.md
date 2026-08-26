@@ -7,9 +7,10 @@ with method-specific evidence plots, breakpoint alignments, regional trees, PHYL
 profiles, review controls, and export views. Alignment data stay inside the browser.
 
 The source-faithful core keeps the original RDP cyclic scheduler for RDP-family events.
-BootScan and SISCAN currently use their direct legacy kernels as independent discovery
-lanes; their evidence profiles are available in the review panel, while late secondary
-corroboration remains a separate follow-up task.
+BootScan and SISCAN use their direct legacy kernels as independent discovery lanes;
+their evidence profiles and fixed-bound secondary checks are available in the review
+panel. Those optional lanes are source-shaped and explicitly marked unvalidated until
+their full cyclic integration is completed.
 
 ## Development
 
