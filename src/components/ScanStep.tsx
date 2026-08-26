@@ -74,7 +74,7 @@ export function ScanStep({
     ? referenceGroupCount
     : progress.activeReferenceGroupCount;
   const discoveryMethods = [
-    "RDP",
+    ...(options.rdpEnabled ? ["RDP"] : []),
     ...(options.geneconvEnabled ? ["GENECONV"] : []),
     ...(options.bootscanPrimaryEnabled ? ["BootScan"] : []),
     ...(options.maxChiEnabled ? ["MaxChi"] : []),
@@ -263,7 +263,7 @@ export function ScanStep({
               {integer.format(progress.signalCount)} signals · {integer.format(progress.eventCount)} event candidates
             </span>
             <span>
-              {integer.format(progress.cumulativeTriplets)} cumulative triplets · RDP {options.windowSites}
+              {integer.format(progress.cumulativeTriplets)} cumulative triplets · {options.rdpEnabled ? `RDP ${options.windowSites}` : "optional-method scan"}
               {` · cycle cap ${progress.maximumDetectionCycles}`}
               {options.maxChiEnabled ? ` · MaxChi ${options.maxChiWindowSites}` : ""}
               {options.chimaeraEnabled ? ` · CHIMAERA ${options.chimaeraWindowSites}` : ""}

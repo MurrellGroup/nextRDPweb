@@ -79,7 +79,9 @@ export function SettingsStep({
     querySequenceCount >= 1 && referenceSequenceCount >= 2 &&
     referenceGroupCount >= 2 && queryReferenceTripletCount > 0
   );
-  const settingsValid = sequenceCount >= 3 && schemeValid &&
+  const methodSelected = options.rdpEnabled || options.geneconvEnabled ||
+    options.maxChiEnabled || options.chimaeraEnabled || options.threeSeqEnabled;
+  const settingsValid = sequenceCount >= 3 && schemeValid && methodSelected &&
     Number.isInteger(options.cpuThreads) &&
     options.cpuThreads >= 1 &&
     options.cpuThreads <= maximumThreads &&
@@ -312,7 +314,7 @@ export function SettingsStep({
               />
               <small>
                 {threaded
-                  ? `${hardwareConcurrency} logical CPUs detected. The default leaves headroom; active use also cannot exceed the enabled heavy methods. Set this to 1 for the lightest machine load.`
+                  ? `${hardwareConcurrency} logical CPUs detected. The default leaves headroom; independent method rows are partitioned deterministically across the selected workers. Set this to 1 for the lightest machine load.`
                   : `${hardwareConcurrency} logical CPU${hardwareConcurrency === 1 ? "" : "s"} detected, but this host is using the deterministic single-worker fallback.`}
               </small>
             </label>
@@ -377,6 +379,20 @@ export function SettingsStep({
                 <span>variable sites</span>
               </div>
               <small>The supplied RDP5 default is 30.</small>
+            </label>
+            <label className="settings-toggle">
+              <input
+                type="checkbox"
+                checked={options.rdpEnabled}
+                onChange={(event) => set("rdpEnabled", event.target.checked)}
+              />
+              <span>
+                <strong>Discover events with RDP</strong>
+                <small>
+                  Runs the original informative-site RDP scan. Turn this off to run one or more
+                  of the optional methods independently.
+                </small>
+              </span>
             </label>
             <label className="settings-toggle">
               <input

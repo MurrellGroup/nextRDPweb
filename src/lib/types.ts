@@ -36,6 +36,7 @@ export interface ScanOptions {
   cpuThreads: number;
   analysisMode: AnalysisMode;
   circular: boolean;
+  rdpEnabled: boolean;
   pValueCutoff: number;
   correction: CorrectionMode;
   windowSites: number;
@@ -1360,6 +1361,7 @@ export interface ScanResults {
   correction: CorrectionMode;
   correctionTests: number;
   circular: boolean;
+  rdpEnabled: boolean;
   maskedSequenceIndices: number[];
   disabledSequenceIndices: number[];
   referenceGroupIndices: number[];

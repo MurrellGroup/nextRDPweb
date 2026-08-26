@@ -33,6 +33,7 @@ interface EmscriptenModule {
     correction: number,
     pValueCutoff: number,
     windowSites: number,
+    rdpEnabled: number,
     maxChiEnabled: number,
     maxChiWindowSites: number,
     chimaeraEnabled: number,
@@ -113,12 +114,13 @@ interface EmscriptenModule {
     sequenceLength: number,
   ): number;
   _rdp_restore_alignment_finish(handle: number, format: number, formatLength: number): number;
-  _rdp_restore_scan_begin(
+    _rdp_restore_scan_begin(
     handle: number,
     circular: number,
     correction: number,
     pValueCutoff: number,
     windowSites: number,
+    rdpEnabled: number,
     maxChiEnabled: number,
     maxChiWindowSites: number,
     chimaeraEnabled: number,
@@ -534,6 +536,14 @@ type SourceFaithfulEvent = {
   ending: number;
   representativeSequences: [number, number, number];
   sequenceGroups: [number[], number[], number[]];
+  burtAttempted?: boolean;
+  burtApplied?: boolean;
+  burtInformationRichSites?: number;
+  burtCandidateIntervalCount?: number;
+  burtBestLogLikelihood?: number;
+  burtConfidence?: number[];
+  burtInputBeginning?: number;
+  burtInputEnding?: number;
 };
 
 type SourceFaithfulResult = {
@@ -543,6 +553,7 @@ type SourceFaithfulResult = {
   sequenceLength: number;
   tripletCount: number;
   rawCandidateCount: number;
+  rdpEnabled?: boolean;
   enabledMethods?: string[];
   events: SourceFaithfulEvent[];
 };
@@ -557,22 +568,6 @@ function sourceMethodForProgram(program: number): DiscoveryMethod {
   }
 }
 
-function emptyBreakpointBoundary(name: "beginning" | "ending", coordinate: number) {
-  return {
-    name,
-    inputCoordinate: coordinate,
-    polishedCoordinate: coordinate,
-    intervalAvailable: false,
-    sourceIntervalContainsInput: false,
-    confidence99: { beginning: -1, ending: -1, wrapsOrigin: false },
-    hmmCoordinate: -1,
-    confidence95: { beginning: -1, ending: -1, wrapsOrigin: false },
-    repositioned: false,
-    missingDataAdjusted: false,
-    finalGapAdjusted: false,
-  };
-}
-
 function makeSourceFaithfulResults(
   raw: SourceFaithfulResult,
   options: ScanOptions,
@@ -582,7 +577,7 @@ function makeSourceFaithfulResults(
   const enabledMethods = (raw.enabledMethods?.length
     ? raw.enabledMethods
     : [
-        "RDP",
+    ...((raw.rdpEnabled ?? options.rdpEnabled) ? ["RDP"] : []),
         ...(options.geneconvEnabled ? ["GENECONV"] : []),
         ...(options.maxChiEnabled ? ["MAXCHI"] : []),
         ...(options.chimaeraEnabled ? ["CHIMAERA"] : []),
@@ -614,6 +609,36 @@ function makeSourceFaithfulResults(
         rdpWindowInformativeSites: 0, nearestErasureInformativeSites: null, uncertainErasureEventIds: [], priorEventIds: [],
       },
     };
+    const burtValues = rawEvent.burtConfidence ?? [];
+    const burtBoundary = (name: "beginning" | "ending") => {
+      const isBeginning = name === "beginning";
+      const input = isBeginning
+        ? rawEvent.burtInputBeginning ?? rawEvent.beginning
+        : rawEvent.burtInputEnding ?? rawEvent.ending;
+      const polished = isBeginning ? rawEvent.beginning : rawEvent.ending;
+      const offset = isBeginning ? 0 : 3;
+      const c99Beginning = burtValues[offset] ?? 0;
+      const c99Ending = burtValues[offset + 1] ?? 0;
+      const c95Beginning = burtValues[isBeginning ? 6 : 8] ?? 0;
+      const c95Ending = burtValues[isBeginning ? 7 : 9] ?? 0;
+      const available = (rawEvent.burtCandidateIntervalCount ?? 0) > 0 &&
+        c99Beginning !== 0 && c99Ending !== 0;
+      return {
+        name,
+        inputCoordinate: input,
+        polishedCoordinate: polished,
+        intervalAvailable: available,
+        sourceIntervalContainsInput: available && (c99Beginning <= c99Ending
+          ? input >= c99Beginning && input <= c99Ending
+          : input >= c99Beginning || input <= c99Ending),
+        confidence99: { beginning: c99Beginning, ending: c99Ending, wrapsOrigin: c99Beginning > c99Ending },
+        hmmCoordinate: burtValues[offset + 2] ?? -1,
+        confidence95: { beginning: c95Beginning, ending: c95Ending, wrapsOrigin: c95Beginning > c95Ending },
+        repositioned: input !== polished,
+        missingDataAdjusted: false,
+        finalGapAdjusted: false,
+      };
+    };
     const unavailable = (status = "profile-unavailable") => ({ status, profileAvailable: false, sourceRecheckHit: false });
     const event = {
       id: eventId,
@@ -640,13 +665,13 @@ function makeSourceFaithfulResults(
       ending: rawEvent.ending,
       wrapsOrigin: rawEvent.beginning > rawEvent.ending,
       breakpointConfidence: {
-        status: "unavailable", method: "BURT/BenHMM", attempted: false, available: false,
-        appliedToEvent: false, informationRichSites: 0, candidateIntervalCount: 0, bestLogLikelihood: 0,
+        status: rawEvent.burtAttempted ? "complete-active-unvalidated" : "unavailable", method: "BURT/BenHMM", attempted: rawEvent.burtAttempted === true, available: rawEvent.burtApplied === true,
+        appliedToEvent: rawEvent.burtApplied === true, informationRichSites: rawEvent.burtInformationRichSites ?? 0, candidateIntervalCount: rawEvent.burtCandidateIntervalCount ?? 0, bestLogLikelihood: rawEvent.burtBestLogLikelihood ?? 0,
         randomSeed: 3, randomAdapter: "msvc-rand-15-bit", sourceRandomAdapter: true,
         hmmCyclesArgument: 20, serialTrainingStarts: 21, posteriorThresholds: [0.995, 0.999],
         polishedBeginning: rawEvent.beginning, polishedEnding: rawEvent.ending,
         singleTransitionAssignment: false, insufficientInsideOrOutsideReverted: false,
-        unavailableReason: "disabled", boundaries: [emptyBreakpointBoundary("beginning", rawEvent.beginning), emptyBreakpointBoundary("ending", rawEvent.ending)],
+        unavailableReason: rawEvent.burtAttempted ? (rawEvent.burtApplied ? null : "hmm-training-unavailable") : "disabled", boundaries: [burtBoundary("beginning"), burtBoundary("ending")],
       },
       breakpointContext: boundaryContext,
       maxChiTripletRecheck: unavailable(), chimaeraTripletRecheck: unavailable(), geneconvTripletRecheck: unavailable(),
@@ -670,7 +695,7 @@ function makeSourceFaithfulResults(
   } as unknown as RdpSignal));
   const total = raw.tripletCount;
   return {
-    engineVersion: raw.engineVersion, status: "cyclic-three-set-reconciled", method: enabledMethods.length === 1 ? enabledMethods[0] : "RDP", analysisMode: "exploratory", queryReference: { active: false, querySequenceCount: 0, referenceSequenceCount: 0, referenceGroupCount: 0, tripletConstraint: "one-query-two-different-reference-groups", sourceCorrectionRule: "reference-group-pairs-times-query-origins" }, discoveryMethods: enabledMethods, reconciliationTier: "detectable-distance-phylogenetic", cycleMode: "strongest-first-tract-erasure-with-bounded-fragment-reentry", lateConsensus: {} as ScanResults["lateConsensus"], breakpointInspection: {} as ScanResults["breakpointInspection"], treeInspection: {} as ScanResults["treeInspection"], phylproInspection: {} as ScanResults["phylproInspection"], finalAlignmentReady: false, fragmentReentry: false, fragmentReentryAlignmentLengthLimit: 0, fragmentSequenceCap: 0, fragmentReentryCapped: false, workingSequenceCount: summary.sequenceCount, workingFragmentSequenceCount: summary.sequenceCount, activeWorkingSequenceCount: summary.activeSequenceCount, queryWorkingSequenceCount: 0, referenceWorkingSequenceCount: 0, activeReferenceGroupCount: 0, processedTriplets: total, totalTriplets: total, scanRounds: 1, maximumDetectionCycles: 1000, cumulativeTriplets: total, maxChiProfilesScanned: 0, maxChiPeakAttempts: 0, maxChiCandidatesFound: 0, maxChiPeakLimitTriplets: 0, chimaeraProfilesScanned: 0, chimaeraPeakAttempts: 0, chimaeraCandidatesFound: 0, chimaeraPeakLimitTargets: 0, geneconvFragmentsScored: 0, geneconvQualifiedFragments: 0, geneconvCandidatesFound: 0, geneconvOverlapRejections: 0, geneconvNumericalFallbackTracks: 0, threeSeqProfilesScanned: 0, threeSeqExactEvaluations: 0, threeSeqApproximateEvaluations: 0, threeSeqCandidatesFound: 0, bootscanProfilesScanned: 0, bootscanCandidateRegionsScored: 0, bootscanCandidatesFound: 0, bootscanPairProfilesRequested: 0, bootscanPairProfileCacheHits: 0, bootscanPairProfileCacheMisses: 0, bootscanPairProfileCacheEvictions: 0, bootscanPairProfileCachePeakBytes: 0, siscanProfilesScanned: 0, siscanWindowsScored: 0, siscanCandidateRegionsScored: 0, siscanCandidatesFound: 0, siscanPermutationDraws: 0, siscanContextBuilds: 0, siscanContextPairComparisons: 0, siscanContextTreeMerges: 0, siscanRandomValuesGenerated: 0, cycleTermination: "complete", correction: options.correction, correctionTests: total, circular: options.circular, maskedSequenceIndices: options.maskedSequenceIndices, disabledSequenceIndices: options.disabledSequenceIndices, referenceGroupIndices: options.referenceGroupIndices, downstreamReconciliationRequiredAfter: null, pValueCutoff: options.pValueCutoff, windowSites: options.windowSites, maxChiEnabled: options.maxChiEnabled, maxChiWindowSites: options.maxChiWindowSites, chimaeraEnabled: options.chimaeraEnabled, chimaeraWindowSites: options.chimaeraWindowSites, geneconvEnabled: options.geneconvEnabled, geneconvMismatchScale: options.geneconvMismatchScale, geneconvMaxOverlaps: options.geneconvMaxOverlaps, threeSeqEnabled: options.threeSeqEnabled, bootscanPrimaryEnabled: false, bootscanSecondaryEnabled: false, bootscanWindowSites: options.bootscanWindowSites, bootscanStepSites: options.bootscanStepSites, bootscanBootstrapReplicates: options.bootscanBootstrapReplicates, bootscanSupportCutoff: options.bootscanSupportCutoff, bootscanRandomSeed: options.bootscanRandomSeed, siscanPrimaryEnabled: false, siscanSecondaryEnabled: false, siscanWindowSites: options.siscanWindowSites, siscanStepSites: options.siscanStepSites, siscanScanPermutations: options.siscanScanPermutations, siscanPValuePermutations: options.siscanPValuePermutations, siscanRandomSeed: options.siscanRandomSeed, polishBreakpoints: options.polishBreakpoints, timing: null, execution: scanExecution(), signals, events, notes: ["Source-faithful nextRDP-core execution with selected discovery methods active; method-specific aggregate counters are not yet exported by the core JSON API."],
+    engineVersion: raw.engineVersion, status: "cyclic-three-set-reconciled", method: enabledMethods.length === 1 ? enabledMethods[0] : (enabledMethods.includes("RDP") ? "RDP" : enabledMethods[0] ?? "RDP"), analysisMode: "exploratory", queryReference: { active: false, querySequenceCount: 0, referenceSequenceCount: 0, referenceGroupCount: 0, tripletConstraint: "one-query-two-different-reference-groups", sourceCorrectionRule: "reference-group-pairs-times-query-origins" }, discoveryMethods: enabledMethods, reconciliationTier: "detectable-distance-phylogenetic", cycleMode: "strongest-first-tract-erasure-with-bounded-fragment-reentry", lateConsensus: {} as ScanResults["lateConsensus"], breakpointInspection: {} as ScanResults["breakpointInspection"], treeInspection: {} as ScanResults["treeInspection"], phylproInspection: {} as ScanResults["phylproInspection"], finalAlignmentReady: false, fragmentReentry: false, fragmentReentryAlignmentLengthLimit: 0, fragmentSequenceCap: 0, fragmentReentryCapped: false, workingSequenceCount: summary.sequenceCount, workingFragmentSequenceCount: summary.sequenceCount, activeWorkingSequenceCount: summary.activeSequenceCount, queryWorkingSequenceCount: 0, referenceWorkingSequenceCount: 0, activeReferenceGroupCount: 0, processedTriplets: total, totalTriplets: total, scanRounds: 1, maximumDetectionCycles: 1000, cumulativeTriplets: total, maxChiProfilesScanned: 0, maxChiPeakAttempts: 0, maxChiCandidatesFound: 0, maxChiPeakLimitTriplets: 0, chimaeraProfilesScanned: 0, chimaeraPeakAttempts: 0, chimaeraPeakLimitTargets: 0, geneconvFragmentsScored: 0, geneconvQualifiedFragments: 0, geneconvCandidatesFound: 0, geneconvOverlapRejections: 0, geneconvNumericalFallbackTracks: 0, threeSeqProfilesScanned: 0, threeSeqExactEvaluations: 0, threeSeqApproximateEvaluations: 0, threeSeqCandidatesFound: 0, bootscanProfilesScanned: 0, bootscanCandidateRegionsScored: 0, bootscanCandidatesFound: 0, bootscanPairProfilesRequested: 0, bootscanPairProfileCacheHits: 0, bootscanPairProfileCacheMisses: 0, bootscanPairProfileCacheEvictions: 0, bootscanPairProfileCachePeakBytes: 0, siscanProfilesScanned: 0, siscanWindowsScored: 0, siscanCandidateRegionsScored: 0, siscanCandidatesFound: 0, siscanPermutationDraws: 0, siscanContextBuilds: 0, siscanContextPairComparisons: 0, siscanContextTreeMerges: 0, siscanRandomValuesGenerated: 0, cycleTermination: "complete", correction: options.correction, correctionTests: total, circular: options.circular, rdpEnabled: options.rdpEnabled, maskedSequenceIndices: options.maskedSequenceIndices, disabledSequenceIndices: options.disabledSequenceIndices, referenceGroupIndices: options.referenceGroupIndices, downstreamReconciliationRequiredAfter: null, pValueCutoff: options.pValueCutoff, windowSites: options.windowSites, maxChiEnabled: options.maxChiEnabled, maxChiWindowSites: options.maxChiWindowSites, chimaeraEnabled: options.chimaeraEnabled, chimaeraWindowSites: options.chimaeraWindowSites, geneconvEnabled: options.geneconvEnabled, geneconvMismatchScale: options.geneconvMismatchScale, geneconvMaxOverlaps: options.geneconvMaxOverlaps, threeSeqEnabled: options.threeSeqEnabled, bootscanPrimaryEnabled: false, bootscanSecondaryEnabled: false, bootscanWindowSites: options.bootscanWindowSites, bootscanStepSites: options.bootscanStepSites, bootscanBootstrapReplicates: options.bootscanBootstrapReplicates, bootscanSupportCutoff: options.bootscanSupportCutoff, bootscanRandomSeed: options.bootscanRandomSeed, siscanPrimaryEnabled: false, siscanSecondaryEnabled: false, siscanWindowSites: options.siscanWindowSites, siscanStepSites: options.siscanStepSites, siscanScanPermutations: options.siscanScanPermutations, siscanPValuePermutations: options.siscanPValuePermutations, siscanRandomSeed: options.siscanRandomSeed, polishBreakpoints: options.polishBreakpoints, timing: null, execution: scanExecution(), signals, events, notes: ["Source-faithful nextRDP-core execution with selected discovery methods active; method-specific aggregate counters are not yet exported by the core JSON API."],
   } as ScanResults;
 }
 
@@ -1165,6 +1190,7 @@ function restoreProject(name: string, bytes: ArrayBuffer): ImportedProject {
         analysis.correction === "none" ? 1 : 0,
         finiteNumber(analysis.pValueCutoff, 0.05),
         integer(analysis.windowSites, 30),
+        analysis.rdpEnabled === false ? 0 : 1,
         supportsMaxChiDiscovery && analysis.maxChiEnabled !== false ? 1 : 0,
         integer(analysis.maxChiWindowSites, 70),
         supportsChimaeraDiscovery && analysis.chimaeraEnabled !== false ? 1 : 0,
@@ -1704,6 +1730,7 @@ async function runScan(request: Extract<WorkerRequest, { type: "scan" }>): Promi
       correction,
       request.options.pValueCutoff,
       request.options.windowSites,
+      request.options.rdpEnabled ? 1 : 0,
       request.options.maxChiEnabled ? 1 : 0,
       request.options.maxChiWindowSites,
       request.options.chimaeraEnabled ? 1 : 0,
