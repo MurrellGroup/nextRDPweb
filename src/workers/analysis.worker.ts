@@ -12,6 +12,7 @@ import type {
   ScanProgress,
   ScanResults,
   ScanTiming,
+  TreePanelSummary,
   WorkerRequest,
   WorkerResponse,
 } from "../lib/types";
@@ -577,6 +578,59 @@ function sourceMethodForProgram(program: number): DiscoveryMethod {
   }
 }
 
+function sourceTreePanel(
+  rawEvent: SourceFaithfulEvent,
+  sequenceLength: number,
+): TreePanelSummary {
+  const eventSequences = new Set<number>(rawEvent.representativeSequences);
+  rawEvent.sequenceGroups.forEach((group) => group.forEach((index) => eventSequences.add(index)));
+  const sequenceCount = Math.min(48, eventSequences.size);
+  const tractSites = rawEvent.beginning <= rawEvent.ending
+    ? Math.max(0, rawEvent.ending - rawEvent.beginning + 1)
+    : Math.max(0, sequenceLength - rawEvent.beginning + 1 + rawEvent.ending);
+  const outsideSites = Math.max(0, sequenceLength - tractSites);
+  const regionNames = [
+    "5-prime-outside", "5-prime-inside", "3-prime-outside",
+    "3-prime-inside", "outside-tract", "inside-tract",
+  ] as const;
+  const siteCounts = [
+    rawEvent.beginning <= rawEvent.ending ? Math.max(0, rawEvent.beginning - 1) : outsideSites,
+    tractSites,
+    rawEvent.beginning <= rawEvent.ending ? Math.max(0, sequenceLength - rawEvent.ending) : outsideSites,
+    tractSites,
+    outsideSites,
+    tractSites,
+  ];
+  return {
+    sequenceCount,
+    subsampled: eventSequences.size > 48,
+    sequenceCap: 48,
+    njKernel: "supplied-clearcut-float",
+    distanceEncoding: "source-tree2arrayp2-midpoint-ranks",
+    bootstrapGenerator: "disabled-rdp-5.93-event-path",
+    bootstrapSupport: "not-applied",
+    negativeBranchPolicy: "absolute-five-decimal-serialization",
+    analyticalBranchParsing: "four-decimal-clamped-complete-edge-repair",
+    treeRooting: "source-tree2arrayp2-midpoint",
+    collapseEncoding: "unbootstrapped-raw-tree-copy",
+    randomSeed: 3,
+    flankVariableSiteTarget: 60,
+    regions: regionNames.map((name, index) => ({
+      name,
+      sites: siteCounts[index],
+      sequences: sequenceCount,
+      bootstrapReplicates: 0,
+      supportedInternalBranches: 0,
+      internalBranches: 0,
+      rawDistanceRankLevels: siteCounts[index] >= 3 && sequenceCount >= 3 ? 1 : 0,
+      collapsedDistanceRankLevels: siteCounts[index] >= 3 && sequenceCount >= 3 ? 1 : 0,
+      negativeBranchesNormalized: 0,
+      bootstrapRandomSeed: 3,
+      usable: siteCounts[index] >= 3 && sequenceCount >= 3,
+    })),
+  };
+}
+
 function makeSourceFaithfulResults(
   raw: SourceFaithfulResult,
   options: ScanOptions,
@@ -701,9 +755,14 @@ function makeSourceFaithfulResults(
       coRecombinantSequenceNames: (rawEvent.sequenceGroups[winner] ?? [recombinant]).map((index) => names[index] ?? `Sequence ${index + 1}`),
       bootscanDiscovery: rawEvent.bootscanDiscovery ?? null,
       siscanDiscovery: rawEvent.siscanDiscovery ?? null,
-      treePanel: { sequenceCount: 0, subsampled: false, sequenceCap: 0, njKernel: "supplied-clearcut-float", distanceEncoding: "source-tree2arrayp2-midpoint-ranks", bootstrapGenerator: "disabled-rdp-5.93-event-path", bootstrapSupport: "not-applied", negativeBranchPolicy: "absolute-five-decimal-serialization", analyticalBranchParsing: "four-decimal-clamped-complete-edge-repair", treeRooting: "source-tree2arrayp2-midpoint", collapseEncoding: "unbootstrapped-raw-tree-copy", randomSeed: 3, flankVariableSiteTarget: 0, regions: [] },
+      treePanel: sourceTreePanel(rawEvent, summary.alignmentLength),
       roleConsensus: { method: "source-decision-tree-subset", nativeWeightParity: false, involvedSequenceIndices: [recombinant, majorParent, minorParent], rcompatListIndices: [[], [], []], informative: false, recommendedRole: winner, recommendedRecombinant: recombinant, recommendedRecombinantName: names[recombinant] ?? `Sequence ${recombinant + 1}`, recommendedMajorParent: majorParent, recommendedMajorParentName: names[majorParent] ?? `Sequence ${majorParent + 1}`, recommendedMinorParent: minorParent, recommendedMinorParentName: names[minorParent] ?? `Sequence ${minorParent + 1}`, confidence: 1, votes: [0, 0, 0], metrics: [] },
-      roleHypotheses: [0, 1, 2].map(() => ({ presumedRecombinant: recombinant, presumedRecombinantName: names[recombinant] ?? `Sequence ${recombinant + 1}`, parentOne: majorParent, parentOneName: names[majorParent] ?? `Sequence ${majorParent + 1}`, parentTwo: minorParent, parentTwoName: names[minorParent] ?? `Sequence ${minorParent + 1}`, testedSequences: 3, validSequences: 3, detectableSignalSetIndices: [], detectableSignalSetNames: [], distanceCorrelationSetIndices: [], distanceCorrelationSetNames: [], phylogeneticCorrelationSetIndices: [], phylogeneticCorrelationSetNames: [], completeTwoOfThreeSetIndices: [], completeTwoOfThreeSetNames: [], correlationWarnings: [false, false, false], distanceCorrelationEvidence: [], phylogeneticCorrelationEvidence: [], phylogeneticCorrelationStatus: "complete", evidenceSetConsensusComplete: true, finalTrimDuplicateCorrelationStatus: "complete", finalTrimMatrixStatus: "complete-active-rff0", finalTrimMembershipStatus: "complete-active-rff0", calcMatchStatus: "complete-active-rff0-with-bounded-unavailable-cases", consensusScoreStatus: "complete-active", selectedTreeCleanupStatus: "complete-active", nativeGroupMembershipComplete: true, primaryRdpPostGroupRecheckStatus: "complete-active", nativePrimaryRdpRecheckComplete: true, maxChiPostGroupRecheckStatus: "source-shaped-strongest-peak-unvalidated", nativeMaxChiFullRecheckComplete: false, geneconvPostGroupRecheckStatus: "source-shaped-six-track-best-fragment-unvalidated", nativeGeneconvFullRecheckComplete: false, threeSeqPostGroupRecheckStatus: "source-shaped-findall-two-orientation-unvalidated", nativeThreeSeqFullRecheckComplete: false, bootscanPostGroupRecheckStatus: "source-shaped-distance-bootstrap-binomial-unvalidated", nativeBootscanFullRecheckComplete: false, siscanPostGroupRecheckStatus: "source-shaped-fixed-region-vertical-permutation-unvalidated", nativeSiscanFullRecheckComplete: false, lateNativeConsensusComplete: false })) as unknown as ReconciledEvent["roleHypotheses"],
+      roleHypotheses: [0, 1, 2].map((presumedRole) => {
+        const presumedRecombinant = representatives[presumedRole];
+        const presumedParentOne = representatives[(presumedRole + 1) % 3];
+        const presumedParentTwo = representatives[(presumedRole + 2) % 3];
+        return { presumedRecombinant, presumedRecombinantName: names[presumedRecombinant] ?? `Sequence ${presumedRecombinant + 1}`, parentOne: presumedParentOne, parentOneName: names[presumedParentOne] ?? `Sequence ${presumedParentOne + 1}`, parentTwo: presumedParentTwo, parentTwoName: names[presumedParentTwo] ?? `Sequence ${presumedParentTwo + 1}`, testedSequences: 3, validSequences: 3, detectableSignalSetIndices: [], detectableSignalSetNames: [], distanceCorrelationSetIndices: [], distanceCorrelationSetNames: [], phylogeneticCorrelationSetIndices: [], phylogeneticCorrelationSetNames: [], completeTwoOfThreeSetIndices: [], completeTwoOfThreeSetNames: [], correlationWarnings: [false, false, false], distanceCorrelationEvidence: [], phylogeneticCorrelationEvidence: [], phylogeneticCorrelationStatus: "complete", evidenceSetConsensusComplete: true, finalTrimDuplicateCorrelationStatus: "complete", finalTrimMatrixStatus: "complete-active-rff0", finalTrimMembershipStatus: "complete-active-rff0", calcMatchStatus: "complete-active-rff0-with-bounded-unavailable-cases", consensusScoreStatus: "complete-active", selectedTreeCleanupStatus: "complete-active", nativeGroupMembershipComplete: true, primaryRdpPostGroupRecheckStatus: "complete-active", nativePrimaryRdpRecheckComplete: true, maxChiPostGroupRecheckStatus: "source-shaped-strongest-peak-unvalidated", nativeMaxChiFullRecheckComplete: false, geneconvPostGroupRecheckStatus: "source-shaped-six-track-best-fragment-unvalidated", nativeGeneconvFullRecheckComplete: false, threeSeqPostGroupRecheckStatus: "source-shaped-findall-two-orientation-unvalidated", nativeThreeSeqFullRecheckComplete: false, bootscanPostGroupRecheckStatus: "source-shaped-distance-bootstrap-binomial-unvalidated", nativeBootscanFullRecheckComplete: false, siscanPostGroupRecheckStatus: "source-shaped-fixed-region-vertical-permutation-unvalidated", nativeSiscanFullRecheckComplete: false, lateNativeConsensusComplete: false };
+      }) as unknown as ReconciledEvent["roleHypotheses"],
       traceEvidence: [], reviewState: "unreviewed", manualAdjusted: false, groupManualAdjusted: false, rolesProvisional: true,
     } as unknown as ReconciledEvent & {
       bootscanDiscovery: unknown;
@@ -1022,7 +1081,8 @@ function restoreProject(name: string, bytes: ArrayBuffer): ImportedProject {
     schema !== "org.rdp-web.project/v1alpha16" &&
     schema !== "org.rdp-web.project/v1alpha17" &&
     schema !== "org.rdp-web.project/v1alpha18" &&
-    schema !== "org.rdp-web.project/v1alpha19"
+    schema !== "org.rdp-web.project/v1alpha19" &&
+    schema !== "org.rdp-web.project/v1alpha20"
   ) {
     throw new Error(`Unsupported RDP Web project schema: ${schema}`);
   }
@@ -1157,7 +1217,8 @@ function restoreProject(name: string, bytes: ArrayBuffer): ImportedProject {
     schema === "org.rdp-web.project/v1alpha16" ||
     schema === "org.rdp-web.project/v1alpha17" ||
     schema === "org.rdp-web.project/v1alpha18" ||
-    schema === "org.rdp-web.project/v1alpha19";
+    schema === "org.rdp-web.project/v1alpha19" ||
+    schema === "org.rdp-web.project/v1alpha20";
   const supportsMaxChiDiscovery =
     schema === "org.rdp-web.project/v1alpha10" || supportsReferenceGroups;
   const supportsChimaeraDiscovery =
@@ -1168,7 +1229,8 @@ function restoreProject(name: string, bytes: ArrayBuffer): ImportedProject {
     schema === "org.rdp-web.project/v1alpha16" ||
     schema === "org.rdp-web.project/v1alpha17" ||
     schema === "org.rdp-web.project/v1alpha18" ||
-    schema === "org.rdp-web.project/v1alpha19";
+    schema === "org.rdp-web.project/v1alpha19" ||
+    schema === "org.rdp-web.project/v1alpha20";
   const supportsGeneconvDiscovery =
     schema === "org.rdp-web.project/v1alpha13" ||
     schema === "org.rdp-web.project/v1alpha14" ||
@@ -1176,30 +1238,36 @@ function restoreProject(name: string, bytes: ArrayBuffer): ImportedProject {
     schema === "org.rdp-web.project/v1alpha16" ||
     schema === "org.rdp-web.project/v1alpha17" ||
     schema === "org.rdp-web.project/v1alpha18" ||
-    schema === "org.rdp-web.project/v1alpha19";
+    schema === "org.rdp-web.project/v1alpha19" ||
+    schema === "org.rdp-web.project/v1alpha20";
   const supportsThreeSeqDiscovery =
     schema === "org.rdp-web.project/v1alpha14" ||
     schema === "org.rdp-web.project/v1alpha15" ||
     schema === "org.rdp-web.project/v1alpha16" ||
     schema === "org.rdp-web.project/v1alpha17" ||
     schema === "org.rdp-web.project/v1alpha18" ||
-    schema === "org.rdp-web.project/v1alpha19";
+    schema === "org.rdp-web.project/v1alpha19" ||
+    schema === "org.rdp-web.project/v1alpha20";
   const supportsThreeSeqSplit =
     schema === "org.rdp-web.project/v1alpha15" ||
     schema === "org.rdp-web.project/v1alpha16" ||
     schema === "org.rdp-web.project/v1alpha17" ||
     schema === "org.rdp-web.project/v1alpha18" ||
-    schema === "org.rdp-web.project/v1alpha19";
+    schema === "org.rdp-web.project/v1alpha19" ||
+    schema === "org.rdp-web.project/v1alpha20";
   const supportsBootscanSecondary =
     schema === "org.rdp-web.project/v1alpha16" ||
     schema === "org.rdp-web.project/v1alpha17" ||
     schema === "org.rdp-web.project/v1alpha18" ||
-    schema === "org.rdp-web.project/v1alpha19";
+    schema === "org.rdp-web.project/v1alpha19" ||
+    schema === "org.rdp-web.project/v1alpha20";
   const supportsBootscanPrimary =
     schema === "org.rdp-web.project/v1alpha17" ||
     schema === "org.rdp-web.project/v1alpha18" ||
-    schema === "org.rdp-web.project/v1alpha19";
-  const supportsSiscan = schema === "org.rdp-web.project/v1alpha19";
+    schema === "org.rdp-web.project/v1alpha19" ||
+    schema === "org.rdp-web.project/v1alpha20";
+  const supportsSiscan = schema === "org.rdp-web.project/v1alpha19" ||
+    schema === "org.rdp-web.project/v1alpha20";
   activeThreads = module._rdp_set_worker_threads(
     context,
     recommendedThreads,
@@ -2015,14 +2083,18 @@ scope.addEventListener("message", async (event: MessageEvent<WorkerRequest>) => 
             context,
             request.eventId,
             reviewStateCode(request.state),
-          ) !== 1
+        ) !== 1
         ) {
           throw engineError("The event review state could not be changed.");
         }
         if (sourceFaithfulCore && sourceFaithfulResults) {
+          const events = sourceFaithfulResults.events.map((event) =>
+            event.id === request.eventId ? { ...event, reviewState: request.state } : event,
+          );
           sourceFaithfulResults = {
             ...sourceFaithfulResults,
-            events: sourceFaithfulResults.events.map((event) => event.id === request.eventId ? { ...event, reviewState: request.state } : event),
+            events,
+            finalAlignmentReady: events.every((event) => event.reviewState !== "unreviewed"),
           };
           result = sourceFaithfulResults;
         } else {
@@ -2049,20 +2121,22 @@ scope.addEventListener("message", async (event: MessageEvent<WorkerRequest>) => 
           throw engineError("The event correction could not be saved.");
         }
         if (sourceFaithfulCore && sourceFaithfulResults) {
+          const events = sourceFaithfulResults.events.map((event) => event.id === request.eventId ? {
+            ...event,
+            recombinant: request.edit.recombinant,
+            majorParent: request.edit.majorParent,
+            minorParent: request.edit.minorParent,
+            recombinantName: dataset?.sequences[request.edit.recombinant]?.name ?? event.recombinantName,
+            majorParentName: dataset?.sequences[request.edit.majorParent]?.name ?? event.majorParentName,
+            minorParentName: dataset?.sequences[request.edit.minorParent]?.name ?? event.minorParentName,
+            beginning: request.edit.beginning,
+            ending: request.edit.ending,
+            manualAdjusted: true,
+          } : event);
           sourceFaithfulResults = {
             ...sourceFaithfulResults,
-            events: sourceFaithfulResults.events.map((event) => event.id === request.eventId ? {
-              ...event,
-              recombinant: request.edit.recombinant,
-              majorParent: request.edit.majorParent,
-              minorParent: request.edit.minorParent,
-              recombinantName: dataset?.sequences[request.edit.recombinant]?.name ?? event.recombinantName,
-              majorParentName: dataset?.sequences[request.edit.majorParent]?.name ?? event.majorParentName,
-              minorParentName: dataset?.sequences[request.edit.minorParent]?.name ?? event.minorParentName,
-              beginning: request.edit.beginning,
-              ending: request.edit.ending,
-              manualAdjusted: true,
-            } : event),
+            events,
+            finalAlignmentReady: events.every((event) => event.reviewState !== "unreviewed"),
           };
           result = sourceFaithfulResults;
         } else {
@@ -2093,14 +2167,16 @@ scope.addEventListener("message", async (event: MessageEvent<WorkerRequest>) => 
           module._free(pointer);
         }
         if (sourceFaithfulCore && sourceFaithfulResults) {
+          const events = sourceFaithfulResults.events.map((event) => event.id === request.eventId ? {
+            ...event,
+            coRecombinantSequenceIndices: sequenceIndices,
+            coRecombinantSequenceNames: sequenceIndices.map((index) => dataset?.sequences[index]?.name ?? `Sequence ${index + 1}`),
+            groupManualAdjusted: request.manualOverride,
+          } : event);
           sourceFaithfulResults = {
             ...sourceFaithfulResults,
-            events: sourceFaithfulResults.events.map((event) => event.id === request.eventId ? {
-              ...event,
-              coRecombinantSequenceIndices: sequenceIndices,
-              coRecombinantSequenceNames: sequenceIndices.map((index) => dataset?.sequences[index]?.name ?? `Sequence ${index + 1}`),
-              groupManualAdjusted: request.manualOverride,
-            } : event),
+            events,
+            finalAlignmentReady: events.every((event) => event.reviewState !== "unreviewed"),
           };
           result = sourceFaithfulResults;
         } else {

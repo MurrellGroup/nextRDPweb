@@ -14,18 +14,20 @@ export function SignalPlot({ plot, signal, loading }: SignalPlotProps) {
   if (loading) return <div className="plot-placeholder">Recomputing the selected triplet profile…</div>;
   if (!plot || plot.points.length < 2) return <div className="plot-placeholder">No plot data are available.</div>;
 
+  const sourceRdpAxis = plot.detectionProfileExact &&
+    plot.profileContext === "detection-alignment" && plot.method === "RDP";
   // RDP's DrawPlots uses the complete alignment as its x-axis even though
   // the profile itself is sampled only at information-rich XDiffPos sites.
-  const xMin = 1;
-  const xMax = plot.alignmentLength > 0
+  // The other method plots retain their sampled-profile extent, as in the
+  // legacy web UI (and because their source plotters choose their own domain).
+  const xMin = sourceRdpAxis ? 1 : plot.points[0].alignmentPosition;
+  const xMax = sourceRdpAxis && plot.alignmentLength > 0
     ? plot.alignmentLength
     : plot.points[plot.points.length - 1].alignmentPosition;
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
   const randomWalk = plot.metric === "random-walk-height";
   const sisterScan = plot.metric === "sister-scan-z-score";
-  const sourceRdpAxis = plot.detectionProfileExact &&
-    plot.profileContext === "detection-alignment" && plot.method === "RDP";
   const unitInterval = !sourceRdpAxis &&
     (plot.metric === "pair-identity" || plot.metric === "bootstrap-support");
   const signedMetric = randomWalk || sisterScan;
