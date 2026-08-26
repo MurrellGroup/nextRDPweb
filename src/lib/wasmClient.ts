@@ -44,6 +44,23 @@ export class RdpWorkerClient {
         if (message.type === "progress") {
           this.latestNativeProgress = message.progress;
           this.progressListeners.forEach((listener) => listener(message.progress));
+        } else if (message.type === "native-progress") {
+          const native = this.latestNativeProgress;
+          if (!native) return;
+          const progress: ScanProgress = {
+            ...native,
+            state: "running",
+            phase: message.phase,
+            scanRound: message.scanRound,
+            processedTriplets: message.processedTriplets,
+            totalTriplets: message.totalTriplets,
+            correctionTests: native.correctionTests || message.totalTriplets,
+            cumulativeTriplets: message.processedTriplets,
+            tripletKernelEvaluations: message.processedTriplets,
+            eventCount: message.eventCount,
+          };
+          this.latestNativeProgress = progress;
+          this.progressListeners.forEach((listener) => listener(progress));
         }
         return;
       }

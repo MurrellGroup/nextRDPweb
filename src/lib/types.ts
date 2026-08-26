@@ -1445,6 +1445,14 @@ export type WorkerRequest =
 
 export type WorkerEvent =
   | { type: "progress"; progress: ScanProgress }
+  | {
+      type: "native-progress";
+      phase: ScanProgress["phase"];
+      scanRound: number;
+      processedTriplets: number;
+      totalTriplets: number;
+      eventCount: number;
+    }
   | ({ type: "engine" } & EngineRuntimeInfo);
 
 export type WorkerResponse =

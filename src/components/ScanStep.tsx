@@ -89,8 +89,8 @@ export function ScanStep({
           <span className="eyebrow">03 · Scan</span>
           <h1 id="scan-title">Detect recombination signals</h1>
           <p>
-            The engine runs away from the interface thread. You can stop between bounded triplet
-            batches without freezing the dataset view.
+            The source-faithful engine runs away from the interface thread. Native primary and
+            cyclic milestones are reported as each long core pass advances.
           </p>
         </div>
         <div className="privacy-note">
@@ -144,7 +144,13 @@ export function ScanStep({
             <span className="eyebrow">
               {options.analysisMode === "query-reference" ? "Query vs reference plan" : "Exploratory plan"}
             </span>
-            <h2>{progress.scanRound > 1 ? `Cyclic discovery pass ${progress.scanRound}` : "Primary triplet screen"}</h2>
+            <h2>
+              {progress.state === "done"
+                ? "Scan complete"
+                : progress.scanRound > 1
+                  ? `Cyclic discovery pass ${progress.scanRound}`
+                  : "Primary triplet screen"}
+            </h2>
           </div>
           <span className={`run-state run-${progress.state}`}>
             {running ? <LoaderCircle className="spin" size={16} /> : hasResults ? <Check size={16} /> : <Pause size={16} />}

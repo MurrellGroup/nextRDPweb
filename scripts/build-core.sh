@@ -32,7 +32,8 @@ if [[ -x "${local_cmake_bin}/cmake" ]]; then
 fi
 
 mkdir -p "${output_dir}"
-emcmake cmake -S "${core_dir}" -B "${build_dir}" -DCMAKE_BUILD_TYPE=Release
+emcmake cmake -S "${core_dir}" -B "${build_dir}" -DCMAKE_BUILD_TYPE=Release \
+  -DNEXT_RDP_ENABLE_OPENMP=OFF -DNEXT_RDP_ENABLE_MANUAL_THREADS=ON
 cmake --build "${build_dir}" --target next-rdp-core-web --parallel
 cmake -E copy_if_different "${build_dir}/next-rdp-core-web.mjs" "${output_dir}/next-rdp-core-web.mjs"
 cmake -E copy_if_different "${build_dir}/next-rdp-core-web.wasm" "${output_dir}/next-rdp-core-web.wasm"

@@ -380,7 +380,6 @@ let maximumThreads = 1;
 let recommendedThreads = 1;
 let requestedThreads = 1;
 let activeThreads = 1;
-let scanMethodThreadCapacity = 1;
 let activeScanTimer: ScanTimer | null = null;
 let lastScanTiming: ScanTiming | null = null;
 let lastScanExecution: ScanExecution | null = null;
@@ -498,17 +497,6 @@ function scanExecution(): ScanExecution {
     activeThreads,
     hardwareConcurrency,
   };
-}
-
-function heavyMethodThreadCapacity(options: ScanOptions): number {
-  return Math.max(1, [
-    options.geneconvEnabled,
-    options.bootscanPrimaryEnabled,
-    options.maxChiEnabled,
-    options.chimaeraEnabled,
-    options.siscanPrimaryEnabled,
-    options.threeSeqEnabled,
-  ].filter(Boolean).length);
 }
 
 function decorateScanResults(results: ScanResults): ScanResults {
@@ -712,10 +700,11 @@ async function initialise(
     return url.href;
   };
   const canThread = scope.crossOriginIsolated && typeof SharedArrayBuffer !== "undefined";
-  // nextRDP-core exposes one source-faithful session module. Its RDP round is
-  // deliberately deterministic; there is no separate legacy multi-method
-  // pthread artifact to select here.
-  const candidates = [{ name: "next-rdp-core-web.mjs", threaded: false }];
+  // The source-faithful core has a pthread build. It keeps the RDP cyclic
+  // scheduler serial (the original source does too), while its independent
+  // AlistGC2/AlistMC3/AlistChi triplet screens fan out deterministically. The
+  // serial artifact remains a valid fallback on non-isolated hosts.
+  const candidates = [{ name: "next-rdp-core-web.mjs", threaded: canThread }];
 
   let lastError: unknown = null;
   for (const candidate of candidates) {
@@ -736,9 +725,9 @@ async function initialise(
         );
       }
       sourceFaithfulCore = loadedVersion.startsWith("nextRDP-core ");
-      threaded = candidate.threaded && !sourceFaithfulCore;
+      threaded = candidate.threaded && canThread;
       hardwareConcurrency = Math.max(1, Math.trunc(scopeNavigatorHardwareConcurrency()));
-      maximumThreads = threaded ? Math.max(1, Math.min(6, hardwareConcurrency)) : 1;
+      maximumThreads = threaded ? Math.max(1, Math.min(8, hardwareConcurrency)) : 1;
       recommendedThreads = threaded
         ? Math.max(1, Math.min(maximumThreads, Math.floor(hardwareConcurrency * 0.75)))
         : 1;
@@ -910,7 +899,6 @@ function loadAlignment(name: string, bytes: ArrayBuffer): DatasetSummary {
   activeScanTimer = null;
   lastScanTiming = null;
   lastScanExecution = null;
-  scanMethodThreadCapacity = 1;
   const input = new Uint8Array(bytes);
   if (sourceFaithfulCore) {
     sourceFaithfulFasta = new TextDecoder().decode(input);
@@ -947,7 +935,6 @@ function restoreProject(name: string, bytes: ArrayBuffer): ImportedProject {
     sourceFaithfulResults = savedAnalysis && typeof savedAnalysis === "object" ? savedAnalysis as ScanResults : null;
     return { dataset: loaded, results: sourceFaithfulResults, sourceFilename: typeof root.sourceFilename === "string" ? root.sourceFilename : name };
   }
-  scanMethodThreadCapacity = 1;
   let root: Record<string, unknown>;
   try {
     root = requireObject(
@@ -1156,16 +1143,9 @@ function restoreProject(name: string, bytes: ArrayBuffer): ImportedProject {
     schema === "org.rdp-web.project/v1alpha18" ||
     schema === "org.rdp-web.project/v1alpha19";
   const supportsSiscan = schema === "org.rdp-web.project/v1alpha19";
-  scanMethodThreadCapacity = Math.max(1,
-    Number(supportsGeneconvDiscovery && analysis.geneconvEnabled !== false) +
-    Number(supportsBootscanPrimary && analysis.bootscanPrimaryEnabled === true) +
-    Number(supportsMaxChiDiscovery && analysis.maxChiEnabled !== false) +
-    Number(supportsChimaeraDiscovery && analysis.chimaeraEnabled !== false) +
-    Number(supportsSiscan && analysis.siscanPrimaryEnabled === true) +
-    Number(supportsThreeSeqDiscovery && analysis.threeSeqEnabled !== false));
   activeThreads = module._rdp_set_worker_threads(
     context,
-    Math.min(recommendedThreads, scanMethodThreadCapacity),
+    recommendedThreads,
   ) || 1;
   const referenceGroups = new Array<number>(restoredDataset.sequenceCount).fill(0);
   if (supportsReferenceGroups &&
@@ -1687,10 +1667,9 @@ async function runScan(request: Extract<WorkerRequest, { type: "scan" }>): Promi
     1,
     Math.min(maximumThreads, integer(request.options.cpuThreads, recommendedThreads)),
   );
-  scanMethodThreadCapacity = heavyMethodThreadCapacity(request.options);
   activeThreads = module._rdp_set_worker_threads(
     context,
-    Math.min(requestedThreads, scanMethodThreadCapacity),
+    requestedThreads,
   ) || 1;
   lastScanExecution = {
     mode: threaded && activeThreads > 1 ? "wasm-pthreads" : "single-worker",
@@ -1841,7 +1820,7 @@ async function reidentifyLaterEvents(eventId: number, cpuThreads: number): Promi
   requestedThreads = Math.max(1, Math.min(maximumThreads, integer(cpuThreads, recommendedThreads)));
   activeThreads = module._rdp_set_worker_threads(
     context,
-    Math.min(requestedThreads, scanMethodThreadCapacity),
+    requestedThreads,
   ) || 1;
   lastScanExecution = {
     mode: threaded && activeThreads > 1 ? "wasm-pthreads" : "single-worker",
