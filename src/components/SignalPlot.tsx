@@ -14,22 +14,41 @@ export function SignalPlot({ plot, signal, loading }: SignalPlotProps) {
   if (loading) return <div className="plot-placeholder">Recomputing the selected triplet profile…</div>;
   if (!plot || plot.points.length < 2) return <div className="plot-placeholder">No plot data are available.</div>;
 
-  const xMin = plot.points[0].alignmentPosition;
-  const xMax = plot.points[plot.points.length - 1].alignmentPosition;
+  // RDP's DrawPlots uses the complete alignment as its x-axis even though
+  // the profile itself is sampled only at information-rich XDiffPos sites.
+  const xMin = 1;
+  const xMax = plot.alignmentLength > 0
+    ? plot.alignmentLength
+    : plot.points[plot.points.length - 1].alignmentPosition;
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
   const randomWalk = plot.metric === "random-walk-height";
   const sisterScan = plot.metric === "sister-scan-z-score";
-  const unitInterval = plot.metric === "pair-identity" || plot.metric === "bootstrap-support";
+  const sourceRdpAxis = plot.detectionProfileExact &&
+    plot.profileContext === "detection-alignment" && plot.method === "RDP";
+  const unitInterval = !sourceRdpAxis &&
+    (plot.metric === "pair-identity" || plot.metric === "bootstrap-support");
   const signedMetric = randomWalk || sisterScan;
-  const rawMinimum = signedMetric ? Math.min(0, plot.minimumValue) : 0;
-  const rawMaximum = !unitInterval ? Math.max(0, plot.maximumValue) : 1;
-  const rawSpan = Math.max(1, rawMaximum - rawMinimum);
-  const yMinimum = signedMetric ? rawMinimum - rawSpan * 0.05 : 0;
-  const yMaximum = signedMetric
+  const rawMinimum = sourceRdpAxis
+    ? plot.minimumValue
+    : signedMetric ? Math.min(0, plot.minimumValue) : 0;
+  const rawMaximum = sourceRdpAxis
+    ? plot.maximumValue
+    : !unitInterval ? Math.max(0, plot.maximumValue) : 1;
+  const rawSpan = sourceRdpAxis
+    ? Math.max(0.01, rawMaximum - rawMinimum)
+    : Math.max(1, rawMaximum - rawMinimum);
+  const yMinimum = sourceRdpAxis
+    ? rawMinimum
+    : signedMetric ? rawMinimum - rawSpan * 0.05 : 0;
+  const yMaximum = sourceRdpAxis
+    ? Math.max(rawMinimum + 0.01, rawMaximum)
+    : signedMetric
     ? rawMaximum + rawSpan * 0.05
     : !unitInterval ? Math.max(1, rawMaximum * 1.05) : 1;
-  const ySpan = Math.max(1, yMaximum - yMinimum);
+  const ySpan = sourceRdpAxis
+    ? Math.max(0.01, yMaximum - yMinimum)
+    : Math.max(1, yMaximum - yMinimum);
   const x = (value: number) =>
     margin.left + ((value - xMin) / Math.max(1, xMax - xMin)) * innerWidth;
   const y = (value: number) =>

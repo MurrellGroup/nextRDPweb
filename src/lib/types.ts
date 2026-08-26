@@ -987,6 +987,7 @@ export interface SignalPlotPoint {
 export interface SignalPlot {
   signalId: number;
   windowSites: number;
+  alignmentLength: number;
   method: DiscoveryMethod;
   metric: "pair-identity" | "chi-square" | "negative-log10-p-value" | "random-walk-height" | "bootstrap-support" | "sister-scan-z-score";
   profileContext: "detection-alignment" | "original-alignment-reconstruction";
