@@ -34,7 +34,7 @@ const methods = [
   {
     name: "BOOTSCAN",
     description: "Seeded sliding-window bootstrap distances, strict closest-pair support, and binomial tract significance.",
-    state: "not-in-this-build",
+    state: "ready",
   },
   {
     name: "MAXCHI",
@@ -49,7 +49,7 @@ const methods = [
   {
     name: "SISCAN",
     description: "Source WPGMA nearest-outlier sister scan with seeded vertical permutations; secondary by default.",
-    state: "not-in-this-build",
+    state: "ready",
   },
   {
     name: "3SEQ",
@@ -80,7 +80,8 @@ export function SettingsStep({
     referenceGroupCount >= 2 && queryReferenceTripletCount > 0
   );
   const methodSelected = options.rdpEnabled || options.geneconvEnabled ||
-    options.maxChiEnabled || options.chimaeraEnabled || options.threeSeqEnabled;
+    options.maxChiEnabled || options.chimaeraEnabled || options.threeSeqEnabled ||
+    options.bootscanPrimaryEnabled || options.siscanPrimaryEnabled;
   const settingsValid = sequenceCount >= 3 && schemeValid && methodSelected &&
     Number.isInteger(options.cpuThreads) &&
     options.cpuThreads >= 1 &&
@@ -142,10 +143,7 @@ export function SettingsStep({
       options.siscanRandomSeed > 0
     ));
   const set = <Key extends keyof ScanOptions>(key: Key, value: ScanOptions[Key]) => {
-    const unsupported = new Set<keyof ScanOptions>([
-      "bootscanPrimaryEnabled", "bootscanSecondaryEnabled", "siscanPrimaryEnabled", "siscanSecondaryEnabled",
-    ]);
-    onChange({ ...options, [key]: unsupported.has(key) ? false as ScanOptions[Key] : value });
+    onChange({ ...options, [key]: value });
   };
 
   return (
@@ -272,7 +270,17 @@ export function SettingsStep({
                     <h3>{method.name}</h3>
                     <p>{method.description}</p>
                     <span>
-                      {method.state === "ready" ? "Included in event discovery" : "not included in this build"}
+                      {method.state === "ready"
+                        ? (method.name === "RDP" && !options.rdpEnabled) ||
+                          (method.name === "MAXCHI" && !options.maxChiEnabled) ||
+                          (method.name === "CHIMAERA" && !options.chimaeraEnabled) ||
+                          (method.name === "GENECONV" && !options.geneconvEnabled) ||
+                          (method.name === "BOOTSCAN" && !options.bootscanPrimaryEnabled) ||
+                          (method.name === "SISCAN" && !options.siscanPrimaryEnabled) ||
+                          (method.name === "3SEQ" && !options.threeSeqEnabled)
+                          ? "Available · disabled for this scan"
+                          : "Included in event discovery"
+                        : "not included in this build"}
                     </span>
                   </div>
                 </article>
@@ -320,10 +328,10 @@ export function SettingsStep({
             </label>
             <div className="inline-note compute-note">
               <Info size={17} />
-              <p>
-                RDP, GENECONV, MaxChi, CHIMAERA, and 3SEQ are connected to the source-faithful
-                core scheduler. BootScan and SISCAN remain unavailable until their kernels are
-                ported.
+                <p>
+                RDP, GENECONV, MaxChi, CHIMAERA, 3SEQ, BootScan, and SISCAN are available in the
+                current core build. The optional window/permutation methods run from the same
+                loaded alignment and expose their evidence profiles in review.
               </p>
             </div>
             <div className="card-heading">
@@ -444,7 +452,6 @@ export function SettingsStep({
               <input
                 type="checkbox"
                 checked={options.bootscanPrimaryEnabled}
-                disabled
                 onChange={(event) => set("bootscanPrimaryEnabled", event.target.checked)}
               />
               <span>
@@ -459,7 +466,6 @@ export function SettingsStep({
               <input
                 type="checkbox"
                 checked={options.bootscanSecondaryEnabled}
-                disabled
                 onChange={(event) => set("bootscanSecondaryEnabled", event.target.checked)}
               />
               <span>
@@ -545,7 +551,6 @@ export function SettingsStep({
               <input
                 type="checkbox"
                 checked={options.siscanPrimaryEnabled}
-                disabled
                 onChange={(event) => set("siscanPrimaryEnabled", event.target.checked)}
               />
               <span>
@@ -560,7 +565,6 @@ export function SettingsStep({
               <input
                 type="checkbox"
                 checked={options.siscanSecondaryEnabled}
-                disabled
                 onChange={(event) => set("siscanSecondaryEnabled", event.target.checked)}
               />
               <span>

@@ -2,7 +2,14 @@
 
 A browser interface for the source-faithful, WASM-compatible RDP implementation in
 [`nextRDP-core`](https://github.com/MurrellGroup/nextRDP-core). The current interface
-runs only the RDP method and keeps alignment data inside the browser.
+runs the RDP, GENECONV, MaxChi, CHIMAERA, 3SEQ, BootScan, and SISCAN discovery lanes,
+with method-specific evidence plots, breakpoint alignments, regional trees, PHYLPRO
+profiles, review controls, and export views. Alignment data stay inside the browser.
+
+The source-faithful core keeps the original RDP cyclic scheduler for RDP-family events.
+BootScan and SISCAN currently use their direct legacy kernels as independent discovery
+lanes; their evidence profiles are available in the review panel, while late secondary
+corroboration remains a separate follow-up task.
 
 ## Development
 
