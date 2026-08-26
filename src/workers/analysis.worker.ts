@@ -727,17 +727,28 @@ async function initialise(
   const canThread = scope.crossOriginIsolated && typeof SharedArrayBuffer !== "undefined";
   // The source-faithful core has a pthread build. It keeps the RDP cyclic
   // scheduler serial (the original source does too), while its independent
-  // AlistGC2/AlistMC3/AlistChi triplet screens fan out deterministically. The
-  // serial artifact remains a valid fallback on non-isolated hosts.
-  const candidates = [{ name: "next-rdp-core-web.mjs", threaded: canThread }];
+  // AlistGC2/AlistMC3/AlistChi triplet screens fan out deterministically. A
+  // pthread module must never be instantiated on a non-isolated page: its
+  // startup posts a SharedArrayBuffer to a worker before the API can select a
+  // thread count, which otherwise raises DataCloneError. Select the serial
+  // artifact before import in that case, and retain it as a fallback if a
+  // threaded host cannot initialise the pthread build.
+  const candidates = canThread
+    ? [
+        { name: "next-rdp-core-web.mjs", wasmName: "next-rdp-core-web.wasm", threaded: true },
+        { name: "next-rdp-core-web-serial.mjs", wasmName: "next-rdp-core-web-serial.wasm", threaded: false },
+      ]
+    : [{ name: "next-rdp-core-web-serial.mjs", wasmName: "next-rdp-core-web-serial.wasm", threaded: false }];
 
   let lastError: unknown = null;
   for (const candidate of candidates) {
     try {
       const factory = await importFactory(assetUrl(candidate.name));
+      const locateFile = (path: string) =>
+        assetUrl(path.endsWith(".wasm") ? candidate.wasmName : path);
       module = await factory({
         noInitialRun: true,
-        locateFile: assetUrl,
+        locateFile,
       });
       context = module._rdp_create();
       if (!context) throw new Error("The WASM engine could not allocate an analysis context.");

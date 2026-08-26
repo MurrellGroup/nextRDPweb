@@ -4,6 +4,7 @@ set -euo pipefail
 project_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 core_dir="${NEXT_RDP_CORE_DIR:-${project_dir}/vendor/nextRDP-core}"
 build_dir="${core_dir}/build/web"
+serial_build_dir="${core_dir}/build/web-serial"
 output_dir="${project_dir}/public/wasm"
 
 if [[ ! -f "${core_dir}/CMakeLists.txt" ]]; then
@@ -37,3 +38,13 @@ emcmake cmake -S "${core_dir}" -B "${build_dir}" -DCMAKE_BUILD_TYPE=Release \
 cmake --build "${build_dir}" --target next-rdp-core-web --parallel
 cmake -E copy_if_different "${build_dir}/next-rdp-core-web.mjs" "${output_dir}/next-rdp-core-web.mjs"
 cmake -E copy_if_different "${build_dir}/next-rdp-core-web.wasm" "${output_dir}/next-rdp-core-web.wasm"
+
+# GitHub Pages is not guaranteed to send COOP/COEP headers, so a pthread-only
+# module cannot be the sole browser artifact. Build the same core without
+# Emscripten pthreads for non-isolated hosts; the worker selects this module
+# before instantiation when SharedArrayBuffer is unavailable.
+emcmake cmake -S "${core_dir}" -B "${serial_build_dir}" -DCMAKE_BUILD_TYPE=Release \
+  -DNEXT_RDP_ENABLE_OPENMP=OFF -DNEXT_RDP_ENABLE_MANUAL_THREADS=OFF
+cmake --build "${serial_build_dir}" --target next-rdp-core-web --parallel
+cmake -E copy_if_different "${serial_build_dir}/next-rdp-core-web.mjs" "${output_dir}/next-rdp-core-web-serial.mjs"
+cmake -E copy_if_different "${serial_build_dir}/next-rdp-core-web.wasm" "${output_dir}/next-rdp-core-web-serial.wasm"
