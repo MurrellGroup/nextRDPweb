@@ -1767,6 +1767,11 @@ async function runScan(request: Extract<WorkerRequest, { type: "scan" }>): Promi
   scanActive = true;
   lastProgressEmission = Number.NEGATIVE_INFINITY;
   emitProgress(true);
+  // Let the initial running snapshot reach the UI before a source-faithful
+  // native scan enters its single long-running call. The client-side heartbeat
+  // uses this snapshot to keep elapsed timing live while native counters are
+  // necessarily unavailable until the call returns.
+  await yieldToWorkerQueue();
   let tripletBudget = INITIAL_SCAN_BATCH;
   try {
     for (;;) {

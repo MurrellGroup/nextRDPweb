@@ -29,6 +29,9 @@ export class RdpWorkerClient {
   private readonly pending = new Map<number, Pending>();
   private requestId = 0;
   private progressListeners = new Set<(progress: ScanProgress) => void>();
+  private liveProgressTimer: number | null = null;
+  private latestNativeProgress: ScanProgress | null = null;
+  private scanStartedAt = 0;
 
   constructor() {
     this.worker = new Worker(new URL("../workers/analysis.worker.ts", import.meta.url), {
@@ -39,6 +42,7 @@ export class RdpWorkerClient {
       const message = event.data;
       if ("type" in message) {
         if (message.type === "progress") {
+          this.latestNativeProgress = message.progress;
           this.progressListeners.forEach((listener) => listener(message.progress));
         }
         return;
@@ -84,7 +88,12 @@ export class RdpWorkerClient {
   }
 
   scan(options: ScanOptions): Promise<ScanResults> {
-    return this.send({ type: "scan", options }) as Promise<ScanResults>;
+    this.stopLiveProgress();
+    this.latestNativeProgress = null;
+    this.scanStartedAt = performance.now();
+    this.liveProgressTimer = window.setInterval(() => this.emitLiveProgress(), 100);
+    const pending = this.send({ type: "scan", options }) as Promise<ScanResults>;
+    return pending.finally(() => this.stopLiveProgress());
   }
 
   cancel(): Promise<void> {
@@ -194,6 +203,7 @@ export class RdpWorkerClient {
   }
 
   dispose(): void {
+    this.stopLiveProgress();
     this.worker.terminate();
     this.pending.clear();
     this.progressListeners.clear();
@@ -208,5 +218,42 @@ export class RdpWorkerClient {
       this.pending.set(id, { resolve, reject });
       this.worker.postMessage({ ...request, id } as WorkerRequest, transfer);
     });
+  }
+
+  /**
+   * The source-faithful core currently completes a full scan in one native
+   * call. That means the analysis worker cannot service its JavaScript queue
+   * until that call returns, even though the scan is still doing useful work.
+   * Keep the monitor live from the UI side in that interval: native counters
+   * remain untouched, while elapsed timing and the active state continue to
+   * advance honestly. Native progress messages replace this heartbeat as soon
+   * as the engine yields a batch.
+  */
+  private emitLiveProgress(): void {
+    const native = this.latestNativeProgress;
+    if (!native || native.state !== "running") return;
+    const elapsed = Math.max(0, performance.now() - this.scanStartedAt);
+    const baseTiming = native.timing;
+    if (!baseTiming) return;
+    const extra = Math.max(0, elapsed - baseTiming.totalMs);
+    const timing = {
+      ...baseTiming,
+      totalMs: Math.max(baseTiming.totalMs, elapsed),
+      primaryMs: native.phase === "primary" ? baseTiming.primaryMs + extra : baseTiming.primaryMs,
+      cyclicRescanMs: native.phase === "cyclic-rescan" ? baseTiming.cyclicRescanMs + extra : baseTiming.cyclicRescanMs,
+      reconciliationMs: native.phase === "reconciliation" ? baseTiming.reconciliationMs + extra : baseTiming.reconciliationMs,
+      currentRoundMs: native.phase === "primary" || native.phase === "cyclic-rescan"
+        ? baseTiming.currentRoundMs + extra
+        : baseTiming.currentRoundMs,
+    };
+    const progress = { ...native, timing };
+    this.progressListeners.forEach((listener) => listener(progress));
+  }
+
+  private stopLiveProgress(): void {
+    if (this.liveProgressTimer !== null) {
+      window.clearInterval(this.liveProgressTimer);
+      this.liveProgressTimer = null;
+    }
   }
 }

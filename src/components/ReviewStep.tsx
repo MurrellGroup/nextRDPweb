@@ -34,7 +34,6 @@ import { EventAlignmentInspector } from "./EventAlignmentInspector";
 import { EventTreeInspector } from "./EventTreeInspector";
 import { EventPhylproInspector } from "./EventPhylproInspector";
 import { SignalPlot } from "./SignalPlot";
-import { Metric } from "./Metric";
 
 interface ReviewStepProps {
   results: ScanResults;
@@ -154,97 +153,6 @@ function EventSchematic({ event, alignmentLength }: { event: ReconciledEvent; al
         </span>
       </div>
     </div>
-  );
-}
-
-function SourceFaithfulReview({
-  results,
-  alignmentLength,
-  sequences,
-  onReviewState,
-  onSaveProject,
-  checkpointDirty,
-  checkpointSaving,
-  onBack,
-  onExport,
-}: Pick<ReviewStepProps, "results" | "alignmentLength" | "sequences" | "onReviewState" | "onSaveProject" | "checkpointDirty" | "checkpointSaving" | "onBack" | "onExport">) {
-  const [selectedId, setSelectedId] = useState(results.events[0]?.id ?? -1);
-  const selected = results.events.find((event) => event.id === selectedId) ?? results.events[0];
-  return (
-    <section className="step-page review-page" aria-labelledby="review-title">
-      <header className="page-heading review-heading">
-        <div>
-          <span className="eyebrow">04 · Review</span>
-          <h1 id="review-title">Resolve RDP events</h1>
-          <p>
-            These calls come from the source-faithful RDP execution in nextRDP-core. Review the
-            event order, roles, breakpoints, and probability, then record each decision.
-          </p>
-        </div>
-        <div className="review-heading-actions">
-          <button className="button button-secondary" type="button" disabled={checkpointSaving} onClick={onSaveProject}>
-            <Save size={15} /> {checkpointDirty ? "Save project checkpoint" : "Checkpoint current"}
-          </button>
-        </div>
-      </header>
-      <div className="notice notice-blue">
-        <GitCompareArrows size={18} />
-        <p>RDP is the only enabled discovery method. The displayed coordinates and roles are the resolved RDP event output; unsupported secondary-method evidence is not fabricated.</p>
-      </div>
-      <div className="review-workspace">
-        <aside className="event-list" aria-label="RDP events">
-          <div className="event-list-heading"><span className="eyebrow">Analysis order</span><strong>{results.events.length} events</strong></div>
-          <div className="event-list-scroll">
-            {results.events.map((event) => (
-              <button type="button" key={event.id} className={`event-list-item${selected?.id === event.id ? " is-selected" : ""}`} onClick={() => setSelectedId(event.id)}>
-                <span className={`event-status status-${event.reviewState}`} />
-                <span><strong>Event {event.id + 1}</strong><small>{event.recombinantName}</small></span>
-                <span><strong>{pValue(event.bestCorrectedPValue)}</strong><small>{event.beginning} → {event.ending}</small></span>
-              </button>
-            ))}
-          </div>
-        </aside>
-        {selected ? (
-          <div className="event-detail">
-            <div className="event-toolbar">
-              <div><span className="eyebrow">Event {selected.id + 1} of {results.events.length} · RDP</span><h2>{selected.recombinantName}</h2></div>
-              <div className="event-navigation">
-                <button type="button" disabled={selected.id <= 0} onClick={() => setSelectedId(Math.max(0, selected.id - 1))} aria-label="Previous event"><ChevronLeft /></button>
-                <button type="button" disabled={selected.id >= results.events.length - 1} onClick={() => setSelectedId(Math.min(results.events.length - 1, selected.id + 1))} aria-label="Next event"><ChevronRight /></button>
-              </div>
-            </div>
-            <EventSchematic event={selected} alignmentLength={alignmentLength} />
-            <div className="metric-grid">
-              <Metric label="Probability" value={pValue(selected.bestCorrectedPValue)} />
-              <Metric label="Beginning" value={selected.beginning.toLocaleString()} />
-              <Metric label="Ending" value={selected.ending.toLocaleString()} />
-              <Metric label="Review state" value={selected.reviewState} />
-            </div>
-            <div className="content-card">
-              <div className="card-heading"><span className="eyebrow">Resolved roles</span><h2>RDP event hypothesis</h2></div>
-              <dl className="event-role-grid">
-                <div><dt>Recombinant</dt><dd>{selected.recombinantName} <small>sequence {selected.recombinant + 1}</small></dd></div>
-                <div><dt>Major parent</dt><dd>{selected.majorParentName} <small>sequence {selected.majorParent + 1}</small></dd></div>
-                <div><dt>Minor parent</dt><dd>{selected.minorParentName} <small>sequence {selected.minorParent + 1}</small></dd></div>
-                <div><dt>Co-recombinant group</dt><dd>{selected.coRecombinantSequenceNames.join(", ")}</dd></div>
-              </dl>
-              <div className="button-row">
-                <button className="button button-primary" type="button" onClick={() => onReviewState(selected.id, "accepted")}><Check size={16} /> Accept event</button>
-                <button className="button button-secondary" type="button" onClick={() => onReviewState(selected.id, "rejected")}><X size={16} /> Reject event</button>
-                <button className="button button-quiet" type="button" onClick={() => onReviewState(selected.id, "unreviewed")}><RotateCcw size={16} /> Clear decision</button>
-              </div>
-            </div>
-            <div className="button-row">
-              <button className="button button-secondary" type="button" onClick={onExport}>Continue to export</button>
-              <button className="button button-quiet" type="button" onClick={onBack}>Change scan settings</button>
-            </div>
-          </div>
-        ) : (
-          <div className="empty-results"><h2>No significant RDP events</h2><p>The source-faithful RDP scan did not resolve an event at the selected threshold.</p></div>
-        )}
-      </div>
-      {sequences.length === 0 ? null : null}
-    </section>
   );
 }
 
@@ -545,22 +453,6 @@ export function ReviewStep({
       })
       .slice(0, 40);
   }, [disabledSequences, groupDraft, groupSearch, selected, sequences]);
-
-  if (results.engineVersion.startsWith("nextRDP-core ")) {
-    return (
-      <SourceFaithfulReview
-        results={results}
-        alignmentLength={alignmentLength}
-        sequences={sequences}
-        onReviewState={onReviewState}
-        onSaveProject={onSaveProject}
-        checkpointDirty={checkpointDirty}
-        checkpointSaving={checkpointSaving}
-        onBack={onBack}
-        onExport={onExport}
-      />
-    );
-  }
 
   if (!selected) {
     return (
