@@ -811,7 +811,7 @@ export interface TreePanelSummary {
   sequenceCount: number;
   subsampled: boolean;
   sequenceCap: number;
-  njKernel: "supplied-clearcut-float";
+  njKernel: "source-shaped-neighbor-joining";
   distanceEncoding: "source-tree2arrayp2-midpoint-ranks";
   bootstrapGenerator: "disabled-rdp-5.93-event-path";
   bootstrapSupport: "not-applied";
@@ -990,6 +990,8 @@ export interface SignalPlot {
   alignmentLength: number;
   method: DiscoveryMethod;
   metric: "pair-identity" | "chi-square" | "negative-log10-p-value" | "random-walk-height" | "bootstrap-support" | "sister-scan-z-score";
+  /** Target role for a one-trace CHIMAERA profile; null for other methods. */
+  targetLocal: 0 | 1 | 2 | null;
   profileContext: "detection-alignment" | "original-alignment-reconstruction";
   detectionProfileExact: boolean;
   minimumValue: number;
@@ -1110,7 +1112,7 @@ export interface EventTreeView {
   eventId: number;
   method: "neighbour-joining";
   distance: "Jukes-Cantor";
-  njKernel: "supplied-clearcut-float";
+  njKernel: "source-shaped-neighbor-joining";
   distanceEncoding: "source-tree2arrayp2-midpoint-ranks";
   bootstrapGenerator: "disabled-rdp-5.93-event-path";
   bootstrapSupport: "not-applied";

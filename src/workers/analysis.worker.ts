@@ -532,6 +532,7 @@ type SourceFaithfulEvent = {
   id: number;
   program?: number;
   winningRole: number;
+  methodTargetRole?: number | null;
   probability: number;
   beginning: number;
   ending: number;
@@ -605,7 +606,7 @@ function sourceTreePanel(
     sequenceCount,
     subsampled: eventSequences.size > 48,
     sequenceCap: 48,
-    njKernel: "supplied-clearcut-float",
+    njKernel: "source-shaped-neighbor-joining",
     distanceEncoding: "source-tree2arrayp2-midpoint-ranks",
     bootstrapGenerator: "disabled-rdp-5.93-event-path",
     bootstrapSupport: "not-applied",

@@ -59,7 +59,7 @@ export function SignalPlot({ plot, signal, loading }: SignalPlotProps) {
     plot.points
       .map((point, index) => `${index ? "L" : "M"}${x(point.alignmentPosition).toFixed(2)},${y(point[key]).toFixed(2)}`)
       .join(" ");
-  const chimaeraTarget = signal.chimaeraDiscovery?.targetLocal ?? null;
+  const chimaeraTarget = signal.chimaeraDiscovery?.targetLocal ?? plot.targetLocal ?? null;
   const chimaeraParentOne = chimaeraTarget === null
     ? null
     : ([1, 2, 0] as const)[chimaeraTarget];
