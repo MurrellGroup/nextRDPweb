@@ -549,6 +549,8 @@ type SourceFaithfulEvent = {
   // worker remains compatible with newer source-faithful kernels.
   bootscanDiscovery?: unknown;
   siscanDiscovery?: unknown;
+  bootscanRecheck?: unknown;
+  siscanRecheck?: unknown;
 };
 
 type SourceFaithfulResult = {
@@ -687,7 +689,9 @@ function makeSourceFaithfulResults(
       },
       breakpointContext: boundaryContext,
       maxChiTripletRecheck: unavailable(), chimaeraTripletRecheck: unavailable(), geneconvTripletRecheck: unavailable(),
-      threeSeqTripletRecheck: unavailable(), bootscanTripletRecheck: unavailable(), siscanTripletRecheck: unavailable(),
+      threeSeqTripletRecheck: unavailable(),
+      bootscanTripletRecheck: rawEvent.bootscanRecheck ?? unavailable(),
+      siscanTripletRecheck: rawEvent.siscanRecheck ?? unavailable(),
       bestLocalPValue: corrected, bestCorrectedPValue: corrected,
       supportSignalIds: [eventId], detectableSequenceIndices: [recombinant], detectableSequenceNames: [names[recombinant] ?? `Sequence ${recombinant + 1}`],
       roleCandidateIndices: { recombinant: [recombinant], majorParent: [majorParent], minorParent: [minorParent] },
