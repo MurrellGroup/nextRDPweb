@@ -12,6 +12,7 @@ import type {
   ScanProgress,
   ScanResults,
   ScanTiming,
+  SignalPlot,
   TreePanelSummary,
   WorkerRequest,
   WorkerResponse,
@@ -844,6 +845,40 @@ function makeSourceFaithfulResults(
     threeSeqEnabled: options.threeSeqEnabled,
     engineVersion: raw.engineVersion, status: "cyclic-three-set-reconciled", method: enabledMethods.length === 1 ? enabledMethods[0] : (enabledMethods.includes("RDP") ? "RDP" : enabledMethods[0] ?? "RDP"), analysisMode, queryReference, discoveryMethods: enabledMethods, reconciliationTier: "detectable-distance-phylogenetic", cycleMode: "strongest-first-tract-erasure-with-bounded-fragment-reentry", lateConsensus: {} as ScanResults["lateConsensus"], breakpointInspection: {} as ScanResults["breakpointInspection"], treeInspection: {} as ScanResults["treeInspection"], phylproInspection: {} as ScanResults["phylproInspection"], finalAlignmentReady: false, fragmentReentry: false, fragmentReentryAlignmentLengthLimit: 0, fragmentSequenceCap: 0, fragmentReentryCapped: false, workingSequenceCount: summary.sequenceCount, workingFragmentSequenceCount: summary.sequenceCount, activeWorkingSequenceCount: summary.activeSequenceCount, queryWorkingSequenceCount: queryReference.querySequenceCount, referenceWorkingSequenceCount: queryReference.referenceSequenceCount, activeReferenceGroupCount: queryReference.referenceGroupCount, processedTriplets: total, totalTriplets: total, scanRounds: 1, maximumDetectionCycles: 1000, cumulativeTriplets: total, maxChiProfilesScanned: 0, maxChiPeakAttempts: 0, maxChiCandidatesFound: 0, maxChiPeakLimitTriplets: 0, chimaeraProfilesScanned: 0, chimaeraPeakAttempts: 0, chimaeraPeakLimitTargets: 0, geneconvFragmentsScored: 0, geneconvQualifiedFragments: 0, geneconvCandidatesFound: 0, geneconvOverlapRejections: 0, geneconvNumericalFallbackTracks: 0, threeSeqProfilesScanned: 0, threeSeqExactEvaluations: 0, threeSeqApproximateEvaluations: 0, threeSeqCandidatesFound: 0, bootscanProfilesScanned: 0, bootscanCandidateRegionsScored: 0, bootscanCandidatesFound: 0, bootscanPairProfilesRequested: 0, bootscanPairProfilesCacheHits: 0, bootscanPairProfilesCacheMisses: 0, bootscanPairProfilesCacheEvictions: 0, bootscanPairProfilesCachePeakBytes: 0, siscanProfilesScanned: 0, siscanWindowsScored: 0, siscanCandidateRegionsScored: 0, siscanCandidatesFound: 0, siscanPermutationDraws: 0, siscanContextBuilds: 0, siscanContextPairComparisons: 0, siscanContextTreeMerges: 0, siscanRandomValuesGenerated: 0, cycleTermination: "complete", correction: options.correction, correctionTests: total, circular: options.circular, rdpEnabled: options.rdpEnabled, maskedSequenceIndices: options.maskedSequenceIndices, disabledSequenceIndices: options.disabledSequenceIndices, referenceGroupIndices: options.referenceGroupIndices, downstreamReconciliationRequiredAfter: null, pValueCutoff: options.pValueCutoff, windowSites: options.windowSites, maxChiEnabled: options.maxChiEnabled, maxChiWindowSites: options.maxChiWindowSites, chimaeraEnabled: options.chimaeraEnabled, chimaeraWindowSites: options.chimaeraWindowSites, bootscanWindowSites: options.bootscanWindowSites, bootscanStepSites: options.bootscanStepSites, bootscanBootstrapReplicates: options.bootscanBootstrapReplicates, bootscanSupportCutoff: options.bootscanSupportCutoff, bootscanRandomSeed: options.bootscanRandomSeed, siscanPrimaryEnabled: options.siscanPrimaryEnabled, siscanSecondaryEnabled: options.siscanSecondaryEnabled, siscanWindowSites: options.siscanWindowSites, siscanStepSites: options.siscanStepSites, siscanScanPermutations: options.siscanScanPermutations, siscanPValuePermutations: options.siscanPValuePermutations, siscanRandomSeed: options.siscanRandomSeed, polishBreakpoints: options.polishBreakpoints, timing: null, execution: scanExecution(), signals, events, notes: ["Source-faithful nextRDP-core execution with selected discovery methods active; method-specific aggregate counters are not yet exported by the core JSON API."],
   } as unknown as ScanResults;
+}
+
+/**
+ * Optional discovery kernels are intentionally evaluated when their review
+ * plot is requested rather than for every event during the scan.  Keep that
+ * real payload in the source-faithful result snapshot once it has been
+ * computed, so project checkpoints/reloads retain the same evidence that was
+ * shown in the review panel.
+ */
+function cacheSourcePlotEvidence(signalId: number, plot: SignalPlot): void {
+  if (!sourceFaithfulCore || !sourceFaithfulResults) return;
+  const eventIndex = sourceFaithfulResults.events.findIndex((event) => event.id === signalId);
+  const signalIndex = sourceFaithfulResults.signals.findIndex((signal) => signal.id === signalId);
+  if (eventIndex < 0 && signalIndex < 0) return;
+
+  const eventPatch = {
+    ...(plot.maxChiDiscovery ? { maxChiDiscovery: plot.maxChiDiscovery } : {}),
+    ...(plot.chimaeraDiscovery ? { chimaeraDiscovery: plot.chimaeraDiscovery } : {}),
+    ...(plot.geneconvDiscovery ? { geneconvDiscovery: plot.geneconvDiscovery } : {}),
+    ...(plot.threeSeqDiscovery ? { threeSeqDiscovery: plot.threeSeqDiscovery } : {}),
+  };
+  const events = eventIndex < 0
+    ? sourceFaithfulResults.events
+    : sourceFaithfulResults.events.map((event, index) =>
+      index === eventIndex ? { ...event, ...eventPatch } : event,
+    );
+  const signals = signalIndex < 0
+    ? sourceFaithfulResults.signals
+    : sourceFaithfulResults.signals.map((signal, index) =>
+      index === signalIndex
+        ? { ...signal, ...eventPatch }
+        : signal,
+    );
+  sourceFaithfulResults = { ...sourceFaithfulResults, events, signals };
 }
 
 async function importFactory(url: string): Promise<ModuleFactory> {
@@ -2097,10 +2132,14 @@ scope.addEventListener("message", async (event: MessageEvent<WorkerRequest>) => 
         break;
       case "plot":
         if (!module || !context) throw new Error("The engine has not been initialised.");
-        result = parseJson(
+        {
+          const plot = parseJson<SignalPlot>(
           module._rdp_get_signal_plot_json(context, request.signalId),
           "Plot data was not returned.",
-        );
+          );
+          cacheSourcePlotEvidence(request.signalId, plot);
+          result = plot;
+        }
         break;
       case "event-alignment":
         if (!module || !context) throw new Error("The engine has not been initialised.");
