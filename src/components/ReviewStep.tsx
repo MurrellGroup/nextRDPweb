@@ -572,10 +572,13 @@ export function ReviewStep({
   const threeSeqRecheckTargetName = threeSeqRecheck.bestTarget === null
     ? null
     : [selected.recombinantName, selected.majorParentName, selected.minorParentName][threeSeqRecheck.bestTarget];
-  const maxChiDiscovery = anchor?.maxChiDiscovery ?? null;
-  const chimaeraDiscovery = anchor?.chimaeraDiscovery ?? null;
-  const geneconvDiscovery = anchor?.geneconvDiscovery ?? null;
-  const threeSeqDiscovery = anchor?.threeSeqDiscovery ?? null;
+  // Optional-method discovery evidence is fetched together with the selected
+  // signal's review plot.  Fall back to the eagerly saved signal field when
+  // reopening an older project or when a method has no plot payload.
+  const maxChiDiscovery = anchor?.maxChiDiscovery ?? plot?.maxChiDiscovery ?? null;
+  const chimaeraDiscovery = anchor?.chimaeraDiscovery ?? plot?.chimaeraDiscovery ?? null;
+  const geneconvDiscovery = anchor?.geneconvDiscovery ?? plot?.geneconvDiscovery ?? null;
+  const threeSeqDiscovery = anchor?.threeSeqDiscovery ?? plot?.threeSeqDiscovery ?? null;
   const bootscanDiscovery = anchor?.bootscanDiscovery ?? null;
   const siscanDiscovery = anchor?.siscanDiscovery ?? null;
   const chimaeraParentOneLocal = chimaeraDiscovery

@@ -550,6 +550,10 @@ type SourceFaithfulEvent = {
   // Optional-method evidence is passed through verbatim from the core JSON.
   // The detailed shapes are intentionally owned by lib/types.ts so that the
   // worker remains compatible with newer source-faithful kernels.
+  maxChiDiscovery?: unknown;
+  chimaeraDiscovery?: unknown;
+  geneconvDiscovery?: unknown;
+  threeSeqDiscovery?: unknown;
   bootscanDiscovery?: unknown;
   siscanDiscovery?: unknown;
   bootscanRecheck?: unknown;
@@ -688,6 +692,10 @@ function makeSourceFaithfulResults(
       ]) as DiscoveryMethod[];
   const events = raw.events.map((rawEvent): ReconciledEvent & {
     profileSequences: [number, number, number];
+    maxChiDiscovery: unknown;
+    chimaeraDiscovery: unknown;
+    geneconvDiscovery: unknown;
+    threeSeqDiscovery: unknown;
     bootscanDiscovery: unknown;
     siscanDiscovery: unknown;
   } => {
@@ -799,6 +807,10 @@ function makeSourceFaithfulResults(
       coRecombinantSequenceIndices: rawEvent.sequenceGroups[winner] ?? [recombinant],
       coRecombinantSequenceNames: (rawEvent.sequenceGroups[winner] ?? [recombinant]).map((index) => names[index] ?? `Sequence ${index + 1}`),
       profileSequences: profileTriplet,
+      maxChiDiscovery: rawEvent.maxChiDiscovery ?? null,
+      chimaeraDiscovery: rawEvent.chimaeraDiscovery ?? null,
+      geneconvDiscovery: rawEvent.geneconvDiscovery ?? null,
+      threeSeqDiscovery: rawEvent.threeSeqDiscovery ?? null,
       bootscanDiscovery: rawEvent.bootscanDiscovery ?? null,
       siscanDiscovery: rawEvent.siscanDiscovery ?? null,
       treePanel: sourceTreePanel(rawEvent, summary.alignmentLength, summary.sequenceCount),
@@ -812,13 +824,17 @@ function makeSourceFaithfulResults(
       traceEvidence: [], reviewState: "unreviewed", manualAdjusted: false, groupManualAdjusted: false, rolesProvisional: true,
     } as unknown as ReconciledEvent & {
       profileSequences: [number, number, number];
+      maxChiDiscovery: unknown;
+      chimaeraDiscovery: unknown;
+      geneconvDiscovery: unknown;
+      threeSeqDiscovery: unknown;
       bootscanDiscovery: unknown;
       siscanDiscovery: unknown;
     };
     return event;
   });
   const signals = events.map((event): RdpSignal => ({
-      id: event.id, method: event.anchorMethod, triplet: event.profileSequences, tripletNames: event.profileSequences.map((index) => names[index] ?? `Sequence ${index + 1}`) as [string, string, string], recombinant: event.recombinant, recombinantName: event.recombinantName, queryReferenceInputRole: event.queryReferenceInputRole, referenceGroup: event.referenceGroup, majorParent: event.majorParent, majorParentName: event.majorParentName, minorParent: event.minorParent, minorParentName: event.minorParentName, beginning: event.beginning, ending: event.ending, wrapsOrigin: event.wrapsOrigin, informativeBeginning: event.beginning, informativeEnding: event.ending, localPValue: event.bestLocalPValue, correctedPValue: event.bestCorrectedPValue, correctionTests: raw.tripletCount, pairSimilarity: [0, 0, 0], informativeSites: 0, candidatePair: 0, maxChiDiscovery: null, chimaeraDiscovery: null, geneconvDiscovery: null, threeSeqDiscovery: null, bootscanDiscovery: event.bootscanDiscovery ?? null, siscanDiscovery: event.siscanDiscovery ?? null, fragmentAssisted: false, fragmentEventContext: [null, null, null], eventId: event.id, reviewState: event.reviewState, provisionalRoles: true,
+      id: event.id, method: event.anchorMethod, triplet: event.profileSequences, tripletNames: event.profileSequences.map((index) => names[index] ?? `Sequence ${index + 1}`) as [string, string, string], recombinant: event.recombinant, recombinantName: event.recombinantName, queryReferenceInputRole: event.queryReferenceInputRole, referenceGroup: event.referenceGroup, majorParent: event.majorParent, majorParentName: event.majorParentName, minorParent: event.minorParent, minorParentName: event.minorParentName, beginning: event.beginning, ending: event.ending, wrapsOrigin: event.wrapsOrigin, informativeBeginning: event.beginning, informativeEnding: event.ending, localPValue: event.bestLocalPValue, correctedPValue: event.bestCorrectedPValue, correctionTests: raw.tripletCount, pairSimilarity: [0, 0, 0], informativeSites: 0, candidatePair: 0, maxChiDiscovery: event.maxChiDiscovery as RdpSignal["maxChiDiscovery"], chimaeraDiscovery: event.chimaeraDiscovery as RdpSignal["chimaeraDiscovery"], geneconvDiscovery: event.geneconvDiscovery as RdpSignal["geneconvDiscovery"], threeSeqDiscovery: event.threeSeqDiscovery as RdpSignal["threeSeqDiscovery"], bootscanDiscovery: event.bootscanDiscovery as RdpSignal["bootscanDiscovery"], siscanDiscovery: event.siscanDiscovery as RdpSignal["siscanDiscovery"], fragmentAssisted: false, fragmentEventContext: [null, null, null], eventId: event.id, reviewState: event.reviewState, provisionalRoles: true,
   } as unknown as RdpSignal));
   const total = raw.tripletCount;
   return {

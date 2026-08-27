@@ -992,6 +992,11 @@ export interface SignalPlot {
   metric: "pair-identity" | "chi-square" | "negative-log10-p-value" | "random-walk-height" | "bootstrap-support" | "sister-scan-z-score";
   /** Target role for a one-trace CHIMAERA profile; null for other methods. */
   targetLocal: 0 | 1 | 2 | null;
+  /** Optional-method discovery evidence is loaded lazily with the plot. */
+  maxChiDiscovery: MaxChiDiscoveryEvidence | null;
+  chimaeraDiscovery: ChimaeraDiscoveryEvidence | null;
+  geneconvDiscovery: GeneconvDiscoveryEvidence | null;
+  threeSeqDiscovery: ThreeSeqDiscoveryEvidence | null;
   profileContext: "detection-alignment" | "original-alignment-reconstruction";
   detectionProfileExact: boolean;
   minimumValue: number;
