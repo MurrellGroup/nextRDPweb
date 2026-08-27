@@ -204,7 +204,7 @@ export function SettingsStep({
                 aria-checked={options.analysisMode === "query-reference"}
                 className={options.analysisMode === "query-reference" ? "is-selected" : ""}
                 onClick={() => set("analysisMode", "query-reference")}
-                disabled
+                disabled={!schemeValid}
               >
                 <CircleDot size={16} />
                 <span>

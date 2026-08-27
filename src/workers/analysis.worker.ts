@@ -565,6 +565,8 @@ type SourceFaithfulResult = {
   rawCandidateCount: number;
   rdpEnabled?: boolean;
   enabledMethods?: string[];
+  analysisMode?: "exploratory" | "query-reference";
+  queryReference?: ScanResults["queryReference"];
   events: SourceFaithfulEvent[];
 };
 
@@ -644,6 +646,35 @@ function makeSourceFaithfulResults(
   summary: DatasetSummary,
 ): ScanResults {
   const names = summary.sequences.map((sequence) => sequence.name);
+  const analysisMode = raw.analysisMode ?? options.analysisMode;
+  const queryReference = raw.queryReference ?? (() => {
+    const groups = options.referenceGroupIndices;
+    const active = analysisMode === "query-reference";
+    let querySequenceCount = 0;
+    let referenceSequenceCount = 0;
+    const referenceGroups = new Set<number>();
+    if (active) {
+      summary.sequences.forEach((sequence) => {
+        if (options.maskedSequenceIndices.includes(sequence.index) ||
+            options.disabledSequenceIndices.includes(sequence.index)) return;
+        const group = integer(groups[sequence.index], 0);
+        if (group > 0) {
+          ++referenceSequenceCount;
+          referenceGroups.add(group);
+        } else {
+          ++querySequenceCount;
+        }
+      });
+    }
+    return {
+      active,
+      querySequenceCount,
+      referenceSequenceCount,
+      referenceGroupCount: referenceGroups.size,
+      tripletConstraint: "one-query-two-different-reference-groups" as const,
+      sourceCorrectionRule: "reference-group-pairs-times-query-origins" as const,
+    };
+  })();
   const enabledMethods = (raw.enabledMethods?.length
     ? raw.enabledMethods
     : [
@@ -733,8 +764,12 @@ function makeSourceFaithfulResults(
       reconciliationBasis: "two-shared-sequences-and-30-percent-overlap",
       recombinant,
       recombinantName: names[recombinant] ?? `Sequence ${recombinant + 1}`,
-      queryReferenceInputRole: "not-applied",
-      referenceGroup: null,
+      queryReferenceInputRole: analysisMode === "query-reference"
+        ? (options.referenceGroupIndices[representatives[winner]] > 0 ? "reference" : "query")
+        : "not-applied",
+      referenceGroup: analysisMode === "query-reference" &&
+        options.referenceGroupIndices[representatives[winner]] > 0
+        ? options.referenceGroupIndices[representatives[winner]] : null,
       majorParent,
       majorParentName: names[majorParent] ?? `Sequence ${majorParent + 1}`,
       minorParent,
@@ -783,11 +818,15 @@ function makeSourceFaithfulResults(
     return event;
   });
   const signals = events.map((event): RdpSignal => ({
-      id: event.id, method: event.anchorMethod, triplet: event.profileSequences, tripletNames: event.profileSequences.map((index) => names[index] ?? `Sequence ${index + 1}`) as [string, string, string], recombinant: event.recombinant, recombinantName: event.recombinantName, queryReferenceInputRole: "not-applied", referenceGroup: null, majorParent: event.majorParent, majorParentName: event.majorParentName, minorParent: event.minorParent, minorParentName: event.minorParentName, beginning: event.beginning, ending: event.ending, wrapsOrigin: event.wrapsOrigin, informativeBeginning: event.beginning, informativeEnding: event.ending, localPValue: event.bestLocalPValue, correctedPValue: event.bestCorrectedPValue, correctionTests: raw.tripletCount, pairSimilarity: [0, 0, 0], informativeSites: 0, candidatePair: 0, maxChiDiscovery: null, chimaeraDiscovery: null, geneconvDiscovery: null, threeSeqDiscovery: null, bootscanDiscovery: event.bootscanDiscovery ?? null, siscanDiscovery: event.siscanDiscovery ?? null, fragmentAssisted: false, fragmentEventContext: [null, null, null], eventId: event.id, reviewState: event.reviewState, provisionalRoles: true,
+      id: event.id, method: event.anchorMethod, triplet: event.profileSequences, tripletNames: event.profileSequences.map((index) => names[index] ?? `Sequence ${index + 1}`) as [string, string, string], recombinant: event.recombinant, recombinantName: event.recombinantName, queryReferenceInputRole: event.queryReferenceInputRole, referenceGroup: event.referenceGroup, majorParent: event.majorParent, majorParentName: event.majorParentName, minorParent: event.minorParent, minorParentName: event.minorParentName, beginning: event.beginning, ending: event.ending, wrapsOrigin: event.wrapsOrigin, informativeBeginning: event.beginning, informativeEnding: event.ending, localPValue: event.bestLocalPValue, correctedPValue: event.bestCorrectedPValue, correctionTests: raw.tripletCount, pairSimilarity: [0, 0, 0], informativeSites: 0, candidatePair: 0, maxChiDiscovery: null, chimaeraDiscovery: null, geneconvDiscovery: null, threeSeqDiscovery: null, bootscanDiscovery: event.bootscanDiscovery ?? null, siscanDiscovery: event.siscanDiscovery ?? null, fragmentAssisted: false, fragmentEventContext: [null, null, null], eventId: event.id, reviewState: event.reviewState, provisionalRoles: true,
   } as unknown as RdpSignal));
   const total = raw.tripletCount;
   return {
-    engineVersion: raw.engineVersion, status: "cyclic-three-set-reconciled", method: enabledMethods.length === 1 ? enabledMethods[0] : (enabledMethods.includes("RDP") ? "RDP" : enabledMethods[0] ?? "RDP"), analysisMode: "exploratory", queryReference: { active: false, querySequenceCount: 0, referenceSequenceCount: 0, referenceGroupCount: 0, tripletConstraint: "one-query-two-different-reference-groups", sourceCorrectionRule: "reference-group-pairs-times-query-origins" }, discoveryMethods: enabledMethods, reconciliationTier: "detectable-distance-phylogenetic", cycleMode: "strongest-first-tract-erasure-with-bounded-fragment-reentry", lateConsensus: {} as ScanResults["lateConsensus"], breakpointInspection: {} as ScanResults["breakpointInspection"], treeInspection: {} as ScanResults["treeInspection"], phylproInspection: {} as ScanResults["phylproInspection"], finalAlignmentReady: false, fragmentReentry: false, fragmentReentryAlignmentLengthLimit: 0, fragmentSequenceCap: 0, fragmentReentryCapped: false, workingSequenceCount: summary.sequenceCount, workingFragmentSequenceCount: summary.sequenceCount, activeWorkingSequenceCount: summary.activeSequenceCount, queryWorkingSequenceCount: 0, referenceWorkingSequenceCount: 0, activeReferenceGroupCount: 0, processedTriplets: total, totalTriplets: total, scanRounds: 1, maximumDetectionCycles: 1000, cumulativeTriplets: total, maxChiProfilesScanned: 0, maxChiPeakAttempts: 0, maxChiCandidatesFound: 0, maxChiPeakLimitTriplets: 0, chimaeraProfilesScanned: 0, chimaeraPeakAttempts: 0, chimaeraPeakLimitTargets: 0, geneconvFragmentsScored: 0, geneconvQualifiedFragments: 0, geneconvCandidatesFound: 0, geneconvOverlapRejections: 0, geneconvNumericalFallbackTracks: 0, threeSeqProfilesScanned: 0, threeSeqExactEvaluations: 0, threeSeqApproximateEvaluations: 0, threeSeqCandidatesFound: 0, bootscanProfilesScanned: 0, bootscanCandidateRegionsScored: 0, bootscanCandidatesFound: 0, bootscanPairProfilesRequested: 0, bootscanPairProfileCacheHits: 0, bootscanPairProfileCacheMisses: 0, bootscanPairProfileCacheEvictions: 0, bootscanPairProfileCachePeakBytes: 0, siscanProfilesScanned: 0, siscanWindowsScored: 0, siscanCandidateRegionsScored: 0, siscanCandidatesFound: 0, siscanPermutationDraws: 0, siscanContextBuilds: 0, siscanContextPairComparisons: 0, siscanContextTreeMerges: 0, siscanRandomValuesGenerated: 0, cycleTermination: "complete", correction: options.correction, correctionTests: total, circular: options.circular, rdpEnabled: options.rdpEnabled, maskedSequenceIndices: options.maskedSequenceIndices, disabledSequenceIndices: options.disabledSequenceIndices, referenceGroupIndices: options.referenceGroupIndices, downstreamReconciliationRequiredAfter: null, pValueCutoff: options.pValueCutoff, windowSites: options.windowSites, maxChiEnabled: options.maxChiEnabled, maxChiWindowSites: options.maxChiWindowSites, chimaeraEnabled: options.chimaeraEnabled, chimaeraWindowSites: options.chimaeraWindowSites, geneconvEnabled: options.geneconvEnabled, geneconvMismatchScale: options.geneconvMismatchScale, geneconvMaxOverlaps: options.geneconvMaxOverlaps, threeSeqEnabled: options.threeSeqEnabled, bootscanPrimaryEnabled: options.bootscanPrimaryEnabled, bootscanSecondaryEnabled: options.bootscanSecondaryEnabled, bootscanWindowSites: options.bootscanWindowSites, bootscanStepSites: options.bootscanStepSites, bootscanBootstrapReplicates: options.bootscanBootstrapReplicates, bootscanSupportCutoff: options.bootscanSupportCutoff, bootscanRandomSeed: options.bootscanRandomSeed, siscanPrimaryEnabled: options.siscanPrimaryEnabled, siscanSecondaryEnabled: options.siscanSecondaryEnabled, siscanWindowSites: options.siscanWindowSites, siscanStepSites: options.siscanStepSites, siscanScanPermutations: options.siscanScanPermutations, siscanPValuePermutations: options.siscanPValuePermutations, siscanRandomSeed: options.siscanRandomSeed, polishBreakpoints: options.polishBreakpoints, timing: null, execution: scanExecution(), signals, events, notes: ["Source-faithful nextRDP-core execution with selected discovery methods active; method-specific aggregate counters are not yet exported by the core JSON API."],
+    geneconvEnabled: options.geneconvEnabled,
+    geneconvMismatchScale: options.geneconvMismatchScale,
+    geneconvMaxOverlaps: options.geneconvMaxOverlaps,
+    threeSeqEnabled: options.threeSeqEnabled,
+    engineVersion: raw.engineVersion, status: "cyclic-three-set-reconciled", method: enabledMethods.length === 1 ? enabledMethods[0] : (enabledMethods.includes("RDP") ? "RDP" : enabledMethods[0] ?? "RDP"), analysisMode, queryReference, discoveryMethods: enabledMethods, reconciliationTier: "detectable-distance-phylogenetic", cycleMode: "strongest-first-tract-erasure-with-bounded-fragment-reentry", lateConsensus: {} as ScanResults["lateConsensus"], breakpointInspection: {} as ScanResults["breakpointInspection"], treeInspection: {} as ScanResults["treeInspection"], phylproInspection: {} as ScanResults["phylproInspection"], finalAlignmentReady: false, fragmentReentry: false, fragmentReentryAlignmentLengthLimit: 0, fragmentSequenceCap: 0, fragmentReentryCapped: false, workingSequenceCount: summary.sequenceCount, workingFragmentSequenceCount: summary.sequenceCount, activeWorkingSequenceCount: summary.activeSequenceCount, queryWorkingSequenceCount: queryReference.querySequenceCount, referenceWorkingSequenceCount: queryReference.referenceSequenceCount, activeReferenceGroupCount: queryReference.referenceGroupCount, processedTriplets: total, totalTriplets: total, scanRounds: 1, maximumDetectionCycles: 1000, cumulativeTriplets: total, maxChiProfilesScanned: 0, maxChiPeakAttempts: 0, maxChiCandidatesFound: 0, maxChiPeakLimitTriplets: 0, chimaeraProfilesScanned: 0, chimaeraPeakAttempts: 0, chimaeraPeakLimitTargets: 0, geneconvFragmentsScored: 0, geneconvQualifiedFragments: 0, geneconvCandidatesFound: 0, geneconvOverlapRejections: 0, geneconvNumericalFallbackTracks: 0, threeSeqProfilesScanned: 0, threeSeqExactEvaluations: 0, threeSeqApproximateEvaluations: 0, threeSeqCandidatesFound: 0, bootscanProfilesScanned: 0, bootscanCandidateRegionsScored: 0, bootscanCandidatesFound: 0, bootscanPairProfilesRequested: 0, bootscanPairProfilesCacheHits: 0, bootscanPairProfilesCacheMisses: 0, bootscanPairProfilesCacheEvictions: 0, bootscanPairProfilesCachePeakBytes: 0, siscanProfilesScanned: 0, siscanWindowsScored: 0, siscanCandidateRegionsScored: 0, siscanCandidatesFound: 0, siscanPermutationDraws: 0, siscanContextBuilds: 0, siscanContextPairComparisons: 0, siscanContextTreeMerges: 0, siscanRandomValuesGenerated: 0, cycleTermination: "complete", correction: options.correction, correctionTests: total, circular: options.circular, rdpEnabled: options.rdpEnabled, maskedSequenceIndices: options.maskedSequenceIndices, disabledSequenceIndices: options.disabledSequenceIndices, referenceGroupIndices: options.referenceGroupIndices, downstreamReconciliationRequiredAfter: null, pValueCutoff: options.pValueCutoff, windowSites: options.windowSites, maxChiEnabled: options.maxChiEnabled, maxChiWindowSites: options.maxChiWindowSites, chimaeraEnabled: options.chimaeraEnabled, chimaeraWindowSites: options.chimaeraWindowSites, bootscanWindowSites: options.bootscanWindowSites, bootscanStepSites: options.bootscanStepSites, bootscanBootstrapReplicates: options.bootscanBootstrapReplicates, bootscanSupportCutoff: options.bootscanSupportCutoff, bootscanRandomSeed: options.bootscanRandomSeed, siscanPrimaryEnabled: options.siscanPrimaryEnabled, siscanSecondaryEnabled: options.siscanSecondaryEnabled, siscanWindowSites: options.siscanWindowSites, siscanStepSites: options.siscanStepSites, siscanScanPermutations: options.siscanScanPermutations, siscanPValuePermutations: options.siscanPValuePermutations, siscanRandomSeed: options.siscanRandomSeed, polishBreakpoints: options.polishBreakpoints, timing: null, execution: scanExecution(), signals, events, notes: ["Source-faithful nextRDP-core execution with selected discovery methods active; method-specific aggregate counters are not yet exported by the core JSON API."],
   } as unknown as ScanResults;
 }
 
