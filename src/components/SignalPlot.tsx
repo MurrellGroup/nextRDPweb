@@ -28,22 +28,23 @@ export function SignalPlot({ plot, signal, loading }: SignalPlotProps) {
   const innerHeight = height - margin.top - margin.bottom;
   const randomWalk = plot.metric === "random-walk-height";
   const sisterScan = plot.metric === "sister-scan-z-score";
-  const unitInterval = !sourceRdpAxis &&
-    (plot.metric === "pair-identity" || plot.metric === "bootstrap-support");
+  const unitInterval = plot.metric === "pair-identity" || plot.metric === "bootstrap-support";
   const signedMetric = randomWalk || sisterScan;
-  const rawMinimum = sourceRdpAxis
-    ? plot.minimumValue
-    : signedMetric ? Math.min(0, plot.minimumValue) : 0;
-  const rawMaximum = sourceRdpAxis
-    ? plot.maximumValue
-    : !unitInterval ? Math.max(0, plot.maximumValue) : 1;
+  const rawMinimum = unitInterval
+    ? 0
+    : sourceRdpAxis ? plot.minimumValue : signedMetric ? Math.min(0, plot.minimumValue) : 0;
+  const rawMaximum = unitInterval
+    ? 1
+    : sourceRdpAxis ? plot.maximumValue : Math.max(0, plot.maximumValue);
   const rawSpan = sourceRdpAxis
     ? Math.max(0.01, rawMaximum - rawMinimum)
     : Math.max(1, rawMaximum - rawMinimum);
-  const yMinimum = sourceRdpAxis
-    ? rawMinimum
-    : signedMetric ? rawMinimum - rawSpan * 0.05 : 0;
-  const yMaximum = sourceRdpAxis
+  const yMinimum = unitInterval
+    ? 0
+    : sourceRdpAxis ? rawMinimum : signedMetric ? rawMinimum - rawSpan * 0.05 : 0;
+  const yMaximum = unitInterval
+    ? 1
+    : sourceRdpAxis
     ? Math.max(rawMinimum + 0.01, rawMaximum)
     : signedMetric
     ? rawMaximum + rawSpan * 0.05
