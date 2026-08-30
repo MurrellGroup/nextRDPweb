@@ -9,9 +9,10 @@
   "scripts": {
     "dev": "vite",
     "build:core": "bash scripts/build-core.sh",
+    "check:formats": "node scripts/check-alignment-formats.mjs",
     "check:types": "tsc --noEmit",
     "build:web": "vite build",
-    "build": "npm run build:core && npm run check:types && npm run build:web",
+    "build": "npm run build:core && npm run check:formats && npm run check:types && npm run build:web",
     "preview": "vite preview"
   },
   "dependencies": {
