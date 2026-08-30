@@ -32,6 +32,8 @@ export class RdpWorkerClient {
   private liveProgressTimer: number | null = null;
   private latestNativeProgress: ScanProgress | null = null;
   private scanStartedAt = 0;
+  private cancelMemory: SharedArrayBuffer | null = null;
+  private cancelPointer = 0;
 
   constructor() {
     this.worker = new Worker(new URL("../workers/analysis.worker.ts", import.meta.url), {
@@ -82,13 +84,16 @@ export class RdpWorkerClient {
     return () => this.progressListeners.delete(listener);
   }
 
-  init(): Promise<EngineRuntimeInfo> {
+  async init(): Promise<EngineRuntimeInfo> {
     const wasmBaseUrl = new URL("wasm/", document.baseURI).href;
-    return this.send({
+    const runtime = await this.send({
       type: "init",
       wasmBaseUrl,
       assetVersion: packageMetadata.version,
-    }) as Promise<EngineRuntimeInfo>;
+    }) as EngineRuntimeInfo;
+    this.cancelMemory = runtime.cancelMemory ?? null;
+    this.cancelPointer = runtime.cancelPointer ?? 0;
+    return runtime;
   }
 
   async load(file: File): Promise<DatasetSummary> {
@@ -107,6 +112,7 @@ export class RdpWorkerClient {
   scan(options: ScanOptions): Promise<ScanResults> {
     this.stopLiveProgress();
     this.latestNativeProgress = null;
+    this.setSharedCancelFlag(0);
     this.scanStartedAt = performance.now();
     this.liveProgressTimer = window.setInterval(() => this.emitLiveProgress(), 100);
     const pending = this.send({ type: "scan", options }) as Promise<ScanResults>;
@@ -114,6 +120,7 @@ export class RdpWorkerClient {
   }
 
   cancel(): Promise<void> {
+    if (this.setSharedCancelFlag(1)) return Promise.resolve();
     return this.send({ type: "cancel" }) as Promise<void>;
   }
 
@@ -272,5 +279,11 @@ export class RdpWorkerClient {
       window.clearInterval(this.liveProgressTimer);
       this.liveProgressTimer = null;
     }
+  }
+
+  private setSharedCancelFlag(value: 0 | 1): boolean {
+    if (!this.cancelMemory || this.cancelPointer <= 0) return false;
+    Atomics.store(new Int32Array(this.cancelMemory, this.cancelPointer, 1), 0, value);
+    return true;
   }
 }

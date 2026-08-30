@@ -481,7 +481,7 @@ export function ScanStep({
               disabled={progress.phase === "reconciliation"}
             >
               {progress.phase === "reconciliation" ? <LoaderCircle className="spin" size={18} /> : <Pause size={18} />}
-              {progress.phase === "reconciliation" ? "Finalizing evidence sets" : "Stop and review completed events"}
+              {progress.phase === "reconciliation" ? "Finalizing evidence sets" : "Stop scan"}
             </button>
           ) : null}
           {hasResults ? (

@@ -98,6 +98,8 @@ export interface EngineRuntimeInfo {
   hardwareConcurrency: number;
   maximumThreads: number;
   recommendedThreads: number;
+  cancelMemory?: SharedArrayBuffer;
+  cancelPointer?: number;
 }
 
 export interface ScanProgress {

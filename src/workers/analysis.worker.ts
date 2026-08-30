@@ -70,6 +70,7 @@ interface EmscriptenModule {
   _rdp_scan_batch(handle: number, tripletBudget: number): number;
   _rdp_reconcile(handle: number): number;
   _rdp_cancel(handle: number): void;
+  _rdp_get_cancel_flag_address(handle: number): number;
   _rdp_get_progress_json(handle: number): number;
   _rdp_get_results_json(handle: number): number;
   _rdp_get_signal_plot_json(handle: number, signalId: number): number;
@@ -946,17 +947,27 @@ async function initialise(
       threaded = candidate.threaded && canThread;
       hardwareConcurrency = Math.max(1, Math.trunc(scopeNavigatorHardwareConcurrency()));
       maximumThreads = threaded ? Math.max(1, Math.min(8, hardwareConcurrency)) : 1;
-      recommendedThreads = threaded
-        ? Math.max(1, Math.min(maximumThreads, Math.floor(hardwareConcurrency * 0.75)))
-        : 1;
+      // The analysis runs off the UI thread, and every threaded source-shaped
+      // lane is deterministic across worker counts. Default to the full pool;
+      // leaving two workers idle made the larger optional scans needlessly
+      // slower while providing no interaction benefit on the main thread.
+      recommendedThreads = maximumThreads;
       requestedThreads = recommendedThreads;
       activeThreads = module._rdp_set_worker_threads(context, recommendedThreads) || 1;
+      const cancelMemory = module.HEAPU8.buffer instanceof SharedArrayBuffer
+        ? module.HEAPU8.buffer
+        : undefined;
+      const cancelPointer = cancelMemory
+        ? module._rdp_get_cancel_flag_address(context)
+        : undefined;
       return {
         threaded,
         version: loadedVersion,
         hardwareConcurrency,
         maximumThreads,
         recommendedThreads,
+        cancelMemory,
+        cancelPointer,
       };
     } catch (error) {
       module = null;
