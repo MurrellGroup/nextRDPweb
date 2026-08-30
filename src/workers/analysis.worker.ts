@@ -978,7 +978,7 @@ async function initialise(
 
   const detail = lastError instanceof Error ? lastError.message : String(lastError ?? "unknown error");
   throw new Error(
-    `The RDP WASM module is not available (${detail}). Build it with npm run build:wasm before running the app.`,
+    `The RDP WASM engine could not start (${detail}). On the hosted site, reload once so the isolation service worker can take control; if the problem persists, clear this site's cached data and reload. For local development, run npm run build:core before starting the app.`,
   );
 }
 
