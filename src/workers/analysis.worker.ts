@@ -842,6 +842,7 @@ function makeSourceFaithfulResults(
   const methodEventCount = (method: DiscoveryMethod) =>
     events.reduce((count, event) => count + (event.anchorMethod === method ? 1 : 0), 0);
   const result = {
+    sourceFaithfulCore: true,
     geneconvEnabled: options.geneconvEnabled,
     geneconvMismatchScale: options.geneconvMismatchScale,
     geneconvMaxOverlaps: options.geneconvMaxOverlaps,

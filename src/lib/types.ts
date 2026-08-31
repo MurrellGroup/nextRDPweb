@@ -1298,6 +1298,7 @@ export interface PhylproInspectionStatus {
 }
 
 export interface ScanResults {
+  sourceFaithfulCore?: boolean;
   engineVersion: string;
   status: "cyclic-three-set-reconciled";
   method: string;

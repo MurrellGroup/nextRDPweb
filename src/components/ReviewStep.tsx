@@ -210,6 +210,12 @@ export function ReviewStep({
     () => new Set(results.disabledSequenceIndices),
     [results.disabledSequenceIndices],
   );
+  const directDiscoveryMethods = results.sourceFaithfulCore
+    ? results.discoveryMethods.filter((method) => method === "BOOTSCAN" || method === "SISCAN")
+    : [];
+  const cyclicDiscoveryMethods = results.discoveryMethods.filter(
+    (method) => !directDiscoveryMethods.some((direct) => direct === method),
+  );
   const selectedIndex = results.events.findIndex((event) => event.id === selectedId);
   const selected = results.events[selectedIndex];
   const anchor = selected
@@ -686,12 +692,20 @@ export function ReviewStep({
       <div className="notice notice-blue">
         <AlertTriangle size={18} />
         <p>
-          {results.discoveryMethods.join(", ")} signals were ranked together in strongest-first cyclic passes, with each inferred co-group tract erased
-          and re-entered as a gap-padded fragment before the next {results.analysisMode === "query-reference" ? "constrained" : "exploratory"} screen. Unchanged triplets reuse their XOverList-style summaries while affected rows and new fragments run fresh kernels. Three evidence sets are
-          evaluated for every role; native PhPr, leave-one-out, displacement, collapsed-tree, and
-          TrpScore decision contributions are auditable below. The project correction factor is the
-          initial scan plan’s {results.correctionTests.toLocaleString()} opportunities and stays fixed
-          even when fragment re-entry changes a later round’s actual workload.
+          {cyclicDiscoveryMethods.length > 0 ? <>
+            {cyclicDiscoveryMethods.join(", ")} signals entered the strongest-first cyclic scheduler,
+            with each inferred co-group tract erased before the next {results.analysisMode === "query-reference" ? "constrained" : "exploratory"} screen.
+            Unchanged triplets reuse their XOverList-style summaries while affected rows run fresh kernels.
+          </> : null}
+          {directDiscoveryMethods.length > 0 ? <>
+            {cyclicDiscoveryMethods.length > 0 ? " " : ""}{directDiscoveryMethods.join(", ")} source-kernel candidate regions are currently retained as direct method records;
+            they do not yet seed the shared tract-erasure scheduler.
+          </> : null}
+          {directDiscoveryMethods.length === 0 ? <>
+            {" "}Three evidence sets are evaluated for every role; native PhPr, leave-one-out,
+            displacement, collapsed-tree, and TrpScore decision contributions are auditable below.
+          </> : null}
+          {" "}The project correction factor is the initial scan plan’s {results.correctionTests.toLocaleString()} opportunities and stays fixed across later work.
         </p>
       </div>
 
@@ -739,7 +753,7 @@ export function ReviewStep({
         </div>
       ) : null}
 
-      {!results.fragmentReentry ? (
+      {!results.fragmentReentry && results.fragmentReentryAlignmentLengthLimit > 0 ? (
         <div className="notice notice-amber">
           <AlertTriangle size={18} />
           <p>
