@@ -1156,7 +1156,7 @@ function loadAlignment(name: string, bytes: ArrayBuffer): DatasetSummary {
   }
 }
 
-function restoreProject(name: string, bytes: ArrayBuffer): ImportedProject {
+async function restoreProject(name: string, bytes: ArrayBuffer): Promise<ImportedProject> {
   if (!module || !context) throw new Error("The engine has not been initialised.");
   if (sourceFaithfulCore) {
     const root = requireObject(JSON.parse(new TextDecoder().decode(bytes)), "The selected project contains invalid JSON.");
@@ -1168,7 +1168,97 @@ function restoreProject(name: string, bytes: ArrayBuffer): ImportedProject {
     }).join("\n") + "\n";
     const loaded = loadAlignment(name, new TextEncoder().encode(fasta).buffer);
     const savedAnalysis = root.analysis;
-    sourceFaithfulResults = savedAnalysis && typeof savedAnalysis === "object" ? savedAnalysis as ScanResults : null;
+    if (!savedAnalysis || typeof savedAnalysis !== "object") {
+      sourceFaithfulResults = null;
+      return {
+        dataset: loaded,
+        results: null,
+        sourceFilename: typeof root.sourceFilename === "string" ? root.sourceFilename : name,
+      };
+    }
+    const saved = savedAnalysis as ScanResults;
+    const options: ScanOptions = {
+      cpuThreads: integer(saved.execution?.requestedThreads, recommendedThreads),
+      analysisMode: saved.analysisMode,
+      circular: saved.circular,
+      rdpEnabled: saved.rdpEnabled,
+      pValueCutoff: saved.pValueCutoff,
+      correction: saved.correction,
+      windowSites: saved.windowSites,
+      maxChiEnabled: saved.maxChiEnabled,
+      maxChiWindowSites: saved.maxChiWindowSites,
+      chimaeraEnabled: saved.chimaeraEnabled,
+      chimaeraWindowSites: saved.chimaeraWindowSites,
+      geneconvEnabled: saved.geneconvEnabled,
+      geneconvMismatchScale: saved.geneconvMismatchScale,
+      geneconvMaxOverlaps: saved.geneconvMaxOverlaps,
+      threeSeqEnabled: saved.threeSeqEnabled,
+      bootscanPrimaryEnabled: saved.bootscanPrimaryEnabled,
+      bootscanSecondaryEnabled: saved.bootscanSecondaryEnabled,
+      bootscanWindowSites: saved.bootscanWindowSites,
+      bootscanStepSites: saved.bootscanStepSites,
+      bootscanBootstrapReplicates: saved.bootscanBootstrapReplicates,
+      bootscanSupportCutoff: saved.bootscanSupportCutoff,
+      bootscanRandomSeed: saved.bootscanRandomSeed,
+      siscanPrimaryEnabled: saved.siscanPrimaryEnabled,
+      siscanSecondaryEnabled: saved.siscanSecondaryEnabled,
+      siscanWindowSites: saved.siscanWindowSites,
+      siscanStepSites: saved.siscanStepSites,
+      siscanScanPermutations: saved.siscanScanPermutations,
+      siscanPValuePermutations: saved.siscanPValuePermutations,
+      siscanRandomSeed: saved.siscanRandomSeed,
+      polishBreakpoints: saved.polishBreakpoints,
+      maskedSequenceIndices: saved.maskedSequenceIndices,
+      disabledSequenceIndices: saved.disabledSequenceIndices,
+      referenceGroupIndices: saved.referenceGroupIndices,
+    };
+    const rebuilt = await runScan({ id: 0, type: "scan", options });
+    if (rebuilt.events.length !== saved.events.length) {
+      throw new Error(
+        `The saved project contains ${saved.events.length} event records, but this core rebuilt ${rebuilt.events.length}. Reload it with the engine version that created the project.`,
+      );
+    }
+    for (const event of saved.events) {
+      if (module._rdp_update_event(
+        context,
+        event.id,
+        event.recombinant,
+        event.majorParent,
+        event.minorParent,
+        event.beginning,
+        event.ending,
+      ) !== 1) {
+        throw engineError(`Saved event ${event.id + 1} could not be restored.`);
+      }
+      const group = [...new Set(event.coRecombinantSequenceIndices)]
+        .sort((left, right) => left - right);
+      const groupPointer = copyUint32(group);
+      try {
+        if (module._rdp_update_event_group(
+          context,
+          event.id,
+          groupPointer,
+          group.length,
+          event.groupManualAdjusted ? 1 : 0,
+        ) !== 1) {
+          throw engineError(`Saved event ${event.id + 1} group could not be restored.`);
+        }
+      } finally {
+        module._free(groupPointer);
+      }
+      if (module._rdp_set_event_review_state(
+        context,
+        event.id,
+        reviewStateCode(event.reviewState),
+      ) !== 1) {
+        throw engineError(`Saved event ${event.id + 1} decision could not be restored.`);
+      }
+    }
+    sourceFaithfulResults = {
+      ...saved,
+      sourceFaithfulCore: true,
+      downstreamReconciliationSupported: false,
+    };
     return { dataset: loaded, results: sourceFaithfulResults, sourceFilename: typeof root.sourceFilename === "string" ? root.sourceFilename : name };
   }
   let root: Record<string, unknown>;
@@ -1903,7 +1993,7 @@ async function yieldToWorkerQueue(): Promise<void> {
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
-async function runScan(request: Extract<WorkerRequest, { type: "scan" }>): Promise<unknown> {
+async function runScan(request: Extract<WorkerRequest, { type: "scan" }>): Promise<ScanResults> {
   if (!module || !context || !dataset) throw new Error("Load an alignment before starting a scan.");
   if (scanActive) throw new Error("A scan is already running.");
 
@@ -2072,7 +2162,11 @@ async function runScan(request: Extract<WorkerRequest, { type: "scan" }>): Promi
 
 async function reidentifyLaterEvents(eventId: number, cpuThreads: number): Promise<ScanResults> {
   if (!module || !context) throw new Error("The engine has not been initialised.");
-  if (sourceFaithfulCore && sourceFaithfulResults) return sourceFaithfulResults;
+  if (sourceFaithfulCore && sourceFaithfulResults) {
+    throw new Error(
+      "nextRDP-core cannot yet replay a corrected event into later cyclic rounds.",
+    );
+  }
   if (scanActive) throw new Error("A scan is already running.");
   activeScanTimer = new ScanTimer();
   lastScanTiming = null;
@@ -2151,7 +2245,7 @@ scope.addEventListener("message", async (event: MessageEvent<WorkerRequest>) => 
         result = loadAlignment(request.name, request.bytes);
         break;
       case "import-project":
-        result = restoreProject(request.name, request.bytes);
+        result = await restoreProject(request.name, request.bytes);
         break;
       case "scan":
         result = await runScan(request);
