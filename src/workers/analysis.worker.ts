@@ -843,6 +843,9 @@ function makeSourceFaithfulResults(
     events.reduce((count, event) => count + (event.anchorMethod === method ? 1 : 0), 0);
   const result = {
     sourceFaithfulCore: true,
+    // The current core keeps review edits, but rdp_reconcile_after does not
+    // yet replay a corrected event into the later cyclic mutation state.
+    downstreamReconciliationSupported: false,
     geneconvEnabled: options.geneconvEnabled,
     geneconvMismatchScale: options.geneconvMismatchScale,
     geneconvMaxOverlaps: options.geneconvMaxOverlaps,

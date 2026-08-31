@@ -216,6 +216,13 @@ export function ReviewStep({
   const cyclicDiscoveryMethods = results.discoveryMethods.filter(
     (method) => !directDiscoveryMethods.some((direct) => direct === method),
   );
+  const downstreamReconciliationSupported =
+    results.downstreamReconciliationSupported !== false;
+  const directCandidatesOnly =
+    cyclicDiscoveryMethods.length === 0 && directDiscoveryMethods.length > 0;
+  const recordLabel = directCandidatesOnly
+    ? results.events.length === 1 ? "candidate record" : "candidate records"
+    : results.events.length === 1 ? "event" : "events";
   const selectedIndex = results.events.findIndex((event) => event.id === selectedId);
   const selected = results.events[selectedIndex];
   const anchor = selected
@@ -555,7 +562,8 @@ export function ReviewStep({
       }
     : null;
   const pendingEvent = results.downstreamReconciliationRequiredAfter;
-  const canReconcile = pendingEvent === selected.id && selected.reviewState !== "unreviewed";
+  const canReconcile = downstreamReconciliationSupported &&
+    pendingEvent === selected.id && selected.reviewState !== "unreviewed";
   const nextUnreviewedEvent = results.events.find(
     (event) => event.reviewState === "unreviewed",
   )?.id ?? null;
@@ -653,8 +661,9 @@ export function ReviewStep({
           <span className="eyebrow">04 · Review</span>
           <h1 id="review-title">Refine the event hypothesis</h1>
           <p>
-            Work in event order. Accept correct calls, repair the first material error, then
-            re-identify only the later events—the review loop described in the RDP5 manual.
+            {downstreamReconciliationSupported
+              ? "Work in event order. Accept correct calls, repair the first material error, then re-identify only the later events—the review loop described in the RDP5 manual."
+              : "Inspect and curate calls in event order. Manual edits are retained in the project and exports, but this core build cannot yet replay a correction into the later cyclic detection state."}
           </p>
         </div>
         <div className="review-heading-actions">
@@ -708,6 +717,18 @@ export function ReviewStep({
           {" "}The project correction factor is the initial scan plan’s {results.correctionTests.toLocaleString()} opportunities and stays fixed across later work.
         </p>
       </div>
+
+      {!downstreamReconciliationSupported ? (
+        <div className="notice notice-amber">
+          <AlertTriangle size={18} />
+          <p>
+            Downstream re-identification after a manual role, breakpoint, group, or rejection
+            change is not yet implemented by nextRDP-core. The edited event is saved, but later
+            events remain the original scan results and should be treated as stale if that edit
+            would alter tract erasure.
+          </p>
+        </div>
+      ) : null}
 
       {results.fragmentReentryCapped ? (
         <div className="notice notice-amber">
@@ -790,7 +811,7 @@ export function ReviewStep({
         <aside className="event-list" aria-label="Reconciled recombination events">
           <div className="event-list-heading">
             <span className="eyebrow">Analysis order</span>
-            <strong>{results.events.length} events</strong>
+            <strong>{results.events.length} {recordLabel}</strong>
           </div>
           <div className="event-list-scroll">
             {results.events.map((event) => {
@@ -829,7 +850,9 @@ export function ReviewStep({
         <div className="event-detail">
           <div className="event-toolbar">
             <div>
-              <span className="eyebrow">Event {selected.id + 1} of {results.events.length} · {selected.detectionMethods.join(" + ")}</span>
+              <span className="eyebrow">
+                {directCandidatesOnly ? "Candidate record" : "Event"} {selected.id + 1} of {results.events.length} · {selected.detectionMethods.join(" + ")}
+              </span>
               <h2>{selected.recombinantName}</h2>
               {selectedRecombinantReferenceGroup > 0 ? (
                 <span className="reference-recombinant-badge">
@@ -2641,7 +2664,9 @@ export function ReviewStep({
               disabled={!canReconcile || reconciling}
               onClick={() => onReconcileAfter(selected.id)}
               title={
-                pendingEvent === null
+                !downstreamReconciliationSupported
+                  ? "The current core cannot yet replay a manual correction into later cyclic rounds"
+                  : pendingEvent === null
                   ? "No changed event is waiting for downstream reconciliation"
                   : selected.id !== pendingEvent
                     ? `Return to event ${pendingEvent + 1}`

@@ -52,6 +52,12 @@ export function ExportStep({
   const referenceRecombinantCount = results.analysisMode === "query-reference"
     ? results.events.filter((event) => event.queryReferenceInputRole === "reference").length
     : 0;
+  const directCandidatesOnly = Boolean(results.sourceFaithfulCore) &&
+    results.discoveryMethods.length > 0 &&
+    results.discoveryMethods.every((method) => method === "BOOTSCAN" || method === "SISCAN");
+  const recordLabel = directCandidatesOnly
+    ? results.events.length === 1 ? "candidate record" : "candidate records"
+    : results.events.length === 1 ? "event" : "events";
   return (
     <section className="step-page export-page" aria-labelledby="export-title">
       <header className="page-heading">
@@ -67,7 +73,7 @@ export function ExportStep({
           <FileArchive size={18} />
           <span>
             <strong>{filename}</strong>
-            {reviewed} of {results.events.length} events reviewed
+            {reviewed} of {results.events.length} {recordLabel} reviewed
           </span>
         </div>
       </header>
@@ -76,8 +82,8 @@ export function ExportStep({
         <div>
           <CheckCircle2 size={22} />
           <span>
-            <strong>Cyclic three-set analysis captured</strong>
-            {results.events.length} events across {results.scanRounds} discovery rounds · {results.analysisMode === "query-reference" ? "query vs reference" : "fully exploratory"} · {results.workingFragmentSequenceCount} working fragments · {results.signals.length} retained signals · {accepted} accepted{referenceRecombinantCount > 0 ? ` · ${referenceRecombinantCount} reference-recombinant call${referenceRecombinantCount === 1 ? "" : "s"}` : ""}
+            <strong>{directCandidatesOnly ? "Direct source-kernel scan captured" : "Cyclic three-set analysis captured"}</strong>
+            {results.events.length} {recordLabel} across {results.scanRounds} discovery rounds · {results.analysisMode === "query-reference" ? "query vs reference" : "fully exploratory"} · {results.workingFragmentSequenceCount} working fragments · {results.signals.length} retained signals · {accepted} accepted{referenceRecombinantCount > 0 ? ` · ${referenceRecombinantCount} reference-recombinant call${referenceRecombinantCount === 1 ? "" : "s"}` : ""}
           </span>
         </div>
         <span className="fidelity-badge">Session 26 snapshot</span>

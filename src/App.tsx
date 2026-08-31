@@ -61,6 +61,16 @@ const initialOptions: ScanOptions = {
   referenceGroupIndices: [],
 };
 
+function resultRecordLabel(results: ScanResults): string {
+  const directCandidatesOnly = Boolean(results.sourceFaithfulCore) &&
+    results.discoveryMethods.length > 0 &&
+    results.discoveryMethods.every((method) => method === "BOOTSCAN" || method === "SISCAN");
+  if (directCandidatesOnly) {
+    return results.events.length === 1 ? "candidate record" : "candidate records";
+  }
+  return results.events.length === 1 ? "event" : "events";
+}
+
 const initialProgress: ScanProgress = {
   state: "idle",
   phase: "primary",
@@ -1307,7 +1317,7 @@ export function App() {
       <footer className="app-statusbar" aria-live="polite">
         <span>{engine.status === "ready" ? "Ready" : engine.status === "loading" ? "Loading analysis engine…" : "Engine unavailable"}</span>
         <span>{filename || "No alignment loaded"}</span>
-        <span>{results ? `${results.events.length} event${results.events.length === 1 ? "" : "s"}` : "RDP Web 0.26"}</span>
+        <span>{results ? `${results.events.length} ${resultRecordLabel(results)}` : "RDP Web 0.26"}</span>
       </footer>
     </div>
   );

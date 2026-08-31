@@ -1299,6 +1299,9 @@ export interface PhylproInspectionStatus {
 
 export interface ScanResults {
   sourceFaithfulCore?: boolean;
+  /** Whether a corrected event can be replayed into the cyclic engine so
+   * later events are rediscovered from that corrected state. */
+  downstreamReconciliationSupported?: boolean;
   engineVersion: string;
   status: "cyclic-three-set-reconciled";
   method: string;
