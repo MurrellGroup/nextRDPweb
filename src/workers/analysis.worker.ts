@@ -1165,13 +1165,20 @@ async function restoreProject(name: string, bytes: ArrayBuffer): Promise<Importe
       return `>${requireString(record.name, `Saved sequence ${index + 1} has no name. `)}\n${requireString(record.sequence, `Saved sequence ${index + 1} has no data. `)}`;
     }).join("\n") + "\n";
     const loaded = loadAlignment(name, new TextEncoder().encode(fasta).buffer);
+    if (typeof savedDataset.format === "string") {
+      loaded.format = savedDataset.format;
+    }
+    const sourceFilename = typeof root.sourceFilename === "string"
+      ? root.sourceFilename
+      : name;
+    datasetName = sourceFilename;
     const savedAnalysis = root.analysis;
     if (!savedAnalysis || typeof savedAnalysis !== "object") {
       sourceFaithfulResults = null;
       return {
         dataset: loaded,
         results: null,
-        sourceFilename: typeof root.sourceFilename === "string" ? root.sourceFilename : name,
+        sourceFilename,
       };
     }
     const saved = savedAnalysis as ScanResults;
@@ -1257,7 +1264,7 @@ async function restoreProject(name: string, bytes: ArrayBuffer): Promise<Importe
       sourceFaithfulCore: true,
       downstreamReconciliationSupported: false,
     };
-    return { dataset: loaded, results: sourceFaithfulResults, sourceFilename: typeof root.sourceFilename === "string" ? root.sourceFilename : name };
+    return { dataset: loaded, results: sourceFaithfulResults, sourceFilename };
   }
   let root: Record<string, unknown>;
   try {
@@ -1941,6 +1948,7 @@ function exportProject(): string {
       coreProject.dataset,
       "The core project contains no alignment.",
     );
+    coreDataset.format = dataset.format;
     return JSON.stringify({
       schema: "org.rdp-web.project/v1alpha20",
       engineVersion: sourceFaithfulResults.engineVersion,
