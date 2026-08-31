@@ -1962,6 +1962,128 @@ function exportProject(): string {
   return JSON.stringify(project, null, 2);
 }
 
+function csvCell(value: string | number | boolean | null | undefined): string {
+  if (value === null || value === undefined) return "";
+  const text = String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function sourceFaithfulCsv(results: ScanResults, summary: DatasetSummary): string {
+  const sequenceName = (index: number) =>
+    summary.sequences[index]?.name ?? `Sequence ${index + 1}`;
+  const named = (indices: number[]) => indices.map(sequenceName).join("; ");
+  const maskedNames = named(results.maskedSequenceIndices);
+  const disabledNames = named(results.disabledSequenceIndices);
+  const activeQueries: string[] = [];
+  const activeReferences: string[] = [];
+  if (results.analysisMode === "query-reference") {
+    const masked = new Set(results.maskedSequenceIndices);
+    const disabled = new Set(results.disabledSequenceIndices);
+    summary.sequences.forEach((sequence) => {
+      if (masked.has(sequence.index) || disabled.has(sequence.index)) return;
+      const group = results.referenceGroupIndices[sequence.index] ?? 0;
+      if (group > 0) activeReferences.push(`${sequence.name}=${group}`);
+      else activeQueries.push(sequence.name);
+    });
+  }
+  const headers = [
+    "Event", "Analysis scheme", "Active query names", "Active reference assignments",
+    "Method", "Detection methods", "Direct source-kernel candidate record",
+    "Detection round", "Recombinant", "Recombinant input role",
+    "Recombinant reference group", "Major parent", "Minor parent", "Beginning",
+    "Ending", "Wraps origin", "Best local p-value", "Best corrected p-value",
+    "BURT status", "BURT applied", "MaxChi recheck status", "MaxChi corrected p-value",
+    "MaxChi source hit", "CHIMAERA recheck status", "CHIMAERA corrected p-value",
+    "CHIMAERA source hit", "GENECONV recheck status", "GENECONV corrected p-value",
+    "GENECONV source hit", "3SEQ recheck status", "3SEQ corrected p-value",
+    "3SEQ source hit", "BootScan recheck status", "BootScan corrected p-value",
+    "BootScan source hit", "SISCAN recheck status", "SISCAN corrected p-value",
+    "SISCAN source hit", "Supporting signals", "Detectable sequences",
+    "Distance-correlation sequences", "Phylogenetic-correlation sequences",
+    "Three role evidence sets", "Automatic two-of-three group",
+    "Current co-recombinant group", "Group manually adjusted", "Trace evidence",
+    "Recommended recombinant", "Recommended major parent", "Recommended minor parent",
+    "Role confidence", "Role votes", "Masked sequences", "Disabled sequences",
+    "Review state", "Manually adjusted",
+  ];
+  const directMethod = (method: DiscoveryMethod) =>
+    results.sourceFaithfulCore && (method === "BOOTSCAN" || method === "SISCAN");
+  const rows = results.events.map((event) => {
+    const current = event.roleHypotheses[0];
+    const roleSets = event.roleHypotheses.map((hypothesis) =>
+      `${hypothesis.presumedRecombinantName}: detectable=[${hypothesis.detectableSignalSetNames.join("; ")}]; distance=[${hypothesis.distanceCorrelationSetNames.join("; ")}]; phylogenetic=[${hypothesis.phylogeneticCorrelationSetNames.join("; ")}]`,
+    ).join(" | ");
+    const supporting = event.supportSignalIds.map((id) => {
+      const signal = results.signals.find((candidate) => candidate.id === id);
+      return `${signal?.method ?? "signal"}:${id + 1}`;
+    }).join("; ");
+    const traces = event.traceEvidence.map((trace) =>
+      `${trace.sequenceName}:${trace.beginning}-${trace.ending}:${trace.correctedPValue}:${trace.significant ? "significant" : "trace"}`,
+    ).join("; ");
+    return [
+      event.id + 1,
+      results.analysisMode,
+      activeQueries.join("; "),
+      activeReferences.join("; "),
+      event.anchorMethod,
+      event.detectionMethods.join("+"),
+      directMethod(event.anchorMethod),
+      event.detectionRound,
+      event.recombinantName,
+      event.queryReferenceInputRole,
+      event.referenceGroup,
+      event.majorParentName,
+      event.minorParentName,
+      event.beginning,
+      event.ending,
+      event.wrapsOrigin,
+      event.bestLocalPValue,
+      event.bestCorrectedPValue,
+      event.breakpointConfidence.status,
+      event.breakpointConfidence.appliedToEvent,
+      event.maxChiTripletRecheck.status,
+      event.maxChiTripletRecheck.correctedPValue,
+      event.maxChiTripletRecheck.sourceRecheckHit,
+      event.chimaeraTripletRecheck.status,
+      event.chimaeraTripletRecheck.correctedPValue,
+      event.chimaeraTripletRecheck.sourceRecheckHit,
+      event.geneconvTripletRecheck.status,
+      event.geneconvTripletRecheck.correctedPValue,
+      event.geneconvTripletRecheck.sourceRecheckHit,
+      event.threeSeqTripletRecheck.status,
+      event.threeSeqTripletRecheck.correctedPValue,
+      event.threeSeqTripletRecheck.sourceRecheckHit,
+      event.bootscanTripletRecheck.status,
+      event.bootscanTripletRecheck.correctedPValue,
+      event.bootscanTripletRecheck.sourceRecheckHit,
+      event.siscanTripletRecheck.status,
+      event.siscanTripletRecheck.correctedPValue,
+      event.siscanTripletRecheck.sourceRecheckHit,
+      supporting,
+      event.detectableSequenceNames.join("; "),
+      current.distanceCorrelationSetNames.join("; "),
+      current.phylogeneticCorrelationSetNames.join("; "),
+      roleSets,
+      event.automaticCoRecombinantSequenceNames.join("; "),
+      event.coRecombinantSequenceNames.join("; "),
+      event.groupManualAdjusted,
+      traces,
+      event.roleConsensus.recommendedRecombinantName,
+      event.roleConsensus.recommendedMajorParentName,
+      event.roleConsensus.recommendedMinorParentName,
+      event.roleConsensus.confidence,
+      event.roleConsensus.votes.join("; "),
+      maskedNames,
+      disabledNames,
+      event.reviewState,
+      event.manualAdjusted,
+    ];
+  });
+  return [headers, ...rows]
+    .map((row) => row.map(csvCell).join(","))
+    .join("\r\n") + "\r\n";
+}
+
 function emitProgress(force = false): ScanProgress | undefined {
   if (!module || !context) throw new Error("The engine has not been initialised.");
   const now = performance.now();
@@ -2430,7 +2552,9 @@ scope.addEventListener("message", async (event: MessageEvent<WorkerRequest>) => 
         break;
       case "export-csv":
         if (!module || !context) throw new Error("The engine has not been initialised.");
-        result = value(module._rdp_export_csv(context));
+        result = sourceFaithfulCore && sourceFaithfulResults && dataset
+          ? sourceFaithfulCsv(sourceFaithfulResults, dataset)
+          : value(module._rdp_export_csv(context));
         break;
       case "export-enabled-sequences": {
         result = exportCuratedSequences(
