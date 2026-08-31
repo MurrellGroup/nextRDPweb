@@ -389,7 +389,6 @@ let activeScanTimer: ScanTimer | null = null;
 let lastScanTiming: ScanTiming | null = null;
 let lastScanExecution: ScanExecution | null = null;
 let sourceFaithfulCore = false;
-let sourceFaithfulFasta = "";
 let sourceFaithfulResults: ScanResults | null = null;
 
 // Progress JSON construction crosses the WASM boundary, allocates a sizeable
@@ -1137,7 +1136,6 @@ function loadAlignment(name: string, bytes: ArrayBuffer): DatasetSummary {
   lastScanExecution = null;
   const input = new Uint8Array(bytes);
   if (sourceFaithfulCore) {
-    sourceFaithfulFasta = new TextDecoder().decode(input);
     sourceFaithfulResults = null;
   }
   const pointer = copyBytes(input);
@@ -1933,13 +1931,23 @@ function exportProject(): string {
   if (!module || !context) throw new Error("The engine has not been initialised.");
   if (sourceFaithfulCore) {
     if (!dataset || !sourceFaithfulResults) throw new Error("Run an analysis before exporting a project.");
-    const sequences = dataset.sequences.map((sequence) => ({ name: sequence.name, sequence: "" }));
-    const fastaRecords = sourceFaithfulFasta.split(/\r?\n(?=>)/);
-    sequences.forEach((record, index) => {
-      const block = fastaRecords[index] ?? "";
-      record.sequence = block.replace(/^>[^\r\n]*\r?\n/, "").replace(/\r?\n/g, "");
-    });
-    return JSON.stringify({ schema: "org.rdp-web.project/v1alpha20", engineVersion: sourceFaithfulResults.engineVersion, sourceFilename: datasetName, dataset: { format: dataset.format, alignmentLength: dataset.alignmentLength, sequences }, analysis: sourceFaithfulResults }, null, 2);
+    const raw = value(module._rdp_export_project_json(context));
+    if (!raw) throw engineError("The project alignment could not be exported.");
+    const coreProject = requireObject(
+      JSON.parse(raw),
+      "The core returned an invalid project alignment.",
+    );
+    const coreDataset = requireObject(
+      coreProject.dataset,
+      "The core project contains no alignment.",
+    );
+    return JSON.stringify({
+      schema: "org.rdp-web.project/v1alpha20",
+      engineVersion: sourceFaithfulResults.engineVersion,
+      sourceFilename: datasetName,
+      dataset: coreDataset,
+      analysis: sourceFaithfulResults,
+    }, null, 2);
   }
   const raw = value(module._rdp_export_project_json(context));
   if (!raw) throw engineError("The project snapshot could not be exported.");
